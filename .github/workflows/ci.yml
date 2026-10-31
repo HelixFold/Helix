@@ -13,5 +13,12 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-helix
 
+      # The compiler links LLVM and libclang, as the release of the toolchain does.
+      - name: Install LLVM 23
+        run: |
+          curl -fsSL https://apt.llvm.org/llvm.sh -o "$RUNNER_TEMP/llvm.sh"
+          sudo bash "$RUNNER_TEMP/llvm.sh" 23
+          sudo apt-get install -y llvm-23-dev libclang-23-dev
+
       - run: helix build
-      - run: helix test src
+      - run: helix build test
