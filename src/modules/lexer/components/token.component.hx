@@ -2,7 +2,7 @@
  * Imports
  */
 
-import { TokenKind, TOKEN_NAMES, TOKEN_SPELLINGS } from "@modules/lexer/constants/token.constant";
+import { TokenKind, TokenNames, TokenSpellings } from "@modules/lexer/constants/token.constant";
 
 /**
  * Returns the name of a token kind, as `helix tokens` prints it.
@@ -10,18 +10,22 @@ import { TokenKind, TOKEN_NAMES, TOKEN_SPELLINGS } from "@modules/lexer/constant
  * @param kind - The kind as a number
  * @returns The NUL-terminated name, or `?` for a number that names no kind
  *
+ * @remarks
+ * The name is the upper-case identifier of the kind, which the token dump of the driver prints in its third column.
+ * The bounds check makes it safe to call with a byte read straight from a token stream.
+ *
  * @example
- * ```ts
- * hx_token_name(TokenKind.KwConst as u32); // 'KW_CONST'
- * hx_token_name(500);                      // '?'
+ * ```hx
+ * hxTokenName(TokenKind.KwConst as u32); // 'KW_CONST'
+ * hxTokenName(500);                      // '?'
  * ```
  *
- * @see TOKEN_NAMES
+ * @see TokenNames
  * @since 1.0.0
  */
 
-export extern "C" function hx_token_name(kind: u32): readonly u8[*] {
-    return kind < TOKEN_NAMES.len ? TOKEN_NAMES[kind].ptr : "?";
+export extern "C" function hxTokenName(kind: u32): readonly u8[*] {
+    return kind < TokenNames.len ? TokenNames[kind].ptr : "?";
 }
 
 /**
@@ -30,18 +34,22 @@ export extern "C" function hx_token_name(kind: u32): readonly u8[*] {
  * @param kind - The kind as a number
  * @returns The NUL-terminated spelling or description, or `?` for a number that names no kind
  *
+ * @remarks
+ * It exposes {@link spelling} to C with a bounds check,
+ * so a caller outside Helix gets `?` rather than a read past the table for an unknown number.
+ *
  * @example
- * ```ts
- * hx_token_spelling(TokenKind.Arrow as u32); // '=>'
- * hx_token_spelling(TokenKind.Ident as u32); // 'identifier'
+ * ```hx
+ * hxTokenSpelling(TokenKind.Arrow as u32); // '=>'
+ * hxTokenSpelling(TokenKind.Ident as u32); // 'identifier'
  * ```
  *
  * @see spelling
  * @since 1.0.0
  */
 
-export extern "C" function hx_token_spelling(kind: u32): readonly u8[*] {
-    return kind < TOKEN_SPELLINGS.len ? TOKEN_SPELLINGS[kind].ptr : "?";
+export extern "C" function hxTokenSpelling(kind: u32): readonly u8[*] {
+    return kind < TokenSpellings.len ? TokenSpellings[kind].ptr : "?";
 }
 
 /**
@@ -55,12 +63,12 @@ export extern "C" function hx_token_spelling(kind: u32): readonly u8[*] {
  * The parser decides where {@link isContextual} lets it serve as a name.
  *
  * @example
- * ```ts
+ * ```hx
  * keyword("const");    // TokenKind.KwConst
  * keyword("constant"); // TokenKind.Ident
  * ```
  *
- * @see hx_keyword_lookup
+ * @see hxKeywordLookup
  * @since 1.0.0
  */
 
@@ -123,16 +131,16 @@ export function keyword(word: string): TokenKind {
  * since `as` is the shortest keyword and `unreachable` the longest.
  *
  * @example
- * ```ts
- * hx_keyword_lookup("while", 5); // TokenKind.KwWhile as u32
- * hx_keyword_lookup("x", 1);     // TokenKind.Ident as u32
+ * ```hx
+ * hxKeywordLookup("while", 5); // TokenKind.KwWhile as u32
+ * hxKeywordLookup("x", 1);     // TokenKind.Ident as u32
  * ```
  *
  * @see keyword
  * @since 1.0.0
  */
 
-export extern "C" function hx_keyword_lookup(text: readonly u8[*], len: u32): u32 {
+export extern "C" function hxKeywordLookup(text: readonly u8[*], len: u32): u32 {
     if (len < 2 || len > 11) return TokenKind.Ident as u32;
     unsafe {
         return keyword(text[0..len]) as u32;
@@ -149,7 +157,7 @@ export extern "C" function hx_keyword_lookup(text: readonly u8[*], len: u32): u3
  * The keywords sit at the end of {@link TokenKind}, so this is a range check.
  *
  * @example
- * ```ts
+ * ```hx
  * isKeyword(TokenKind.KwType); // true
  * isKeyword(TokenKind.Ident);  // false
  * ```
@@ -172,7 +180,7 @@ export function isKeyword(kind: TokenKind): bool {
  * Fields and variables can still be named after these words, so `let type = 1;` is valid.
  *
  * @example
- * ```ts
+ * ```hx
  * isContextual(TokenKind.KwType);  // true
  * isContextual(TokenKind.KwConst); // false
  * ```
@@ -193,18 +201,22 @@ export function isContextual(kind: TokenKind): bool {
  * Returns the spelling of a token kind as a string.
  *
  * @param kind - The kind to spell
- * @returns The spelling or description from {@link TOKEN_SPELLINGS}
+ * @returns The spelling or description from {@link TokenSpellings}
+ *
+ * @remarks
+ * It indexes {@link TokenSpellings} without a bounds check, which is safe for any value of {@link TokenKind}.
+ * An error message uses it to name the token that it expected or found.
  *
  * @example
- * ```ts
+ * ```hx
  * spelling(TokenKind.Semicolon); // ';'
  * spelling(TokenKind.Eof);       // 'end of file'
  * ```
  *
- * @see hx_token_spelling
+ * @see hxTokenSpelling
  * @since 1.0.0
  */
 
 export function spelling(kind: TokenKind): string {
-    return TOKEN_SPELLINGS[kind as usize];
+    return TokenSpellings[kind as usize];
 }

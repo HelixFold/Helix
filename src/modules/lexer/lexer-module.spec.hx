@@ -5,14 +5,14 @@
 import { strlen } from "std/c";
 import { cAllocator } from "std";
 import { Builder } from "std/fmt";
-import { hx_diag_list_free } from "@models/diagnostic.model";
+import { hxDiagListFree } from "@models/diagnostic.model";
 import { HxSource } from "@models/structs/source-model.struct";
 import { HxArena } from "@services/structs/arena-service.struct";
 import { HxDiagList } from "@models/structs/diagnostic-model.struct";
 import { HxTokens } from "@modules/lexer/structs/lexer-module.struct";
-import { hx_token_name } from "@modules/lexer/components/token.component";
-import { hx_lex, hx_lex_append, hx_tokens_free } from "@modules/lexer/lexer.module";
-import { addText, files, hx_source_from_string, hx_source_free } from "@models/source.model";
+import { hxTokenName } from "@modules/lexer/components/token.component";
+import { hxLex, hxLexAppend, hxTokensFree } from "@modules/lexer/lexer.module";
+import { addText, files, hxSourceFromString, hxSourceFree } from "@models/source.model";
 
 /**
  * Tests
@@ -20,6 +20,12 @@ import { addText, files, hx_source_from_string, hx_source_free } from "@models/s
 
 /**
  * A source, its tokens, and its diagnostics after one run of the lexer.
+ *
+ * @remarks
+ * The `ok` field keeps the result of {@link hxLex}, so a test can check success without counting errors.
+ * Each test declares one on the stack, fills it with {@link lex}, and frees it with {@link release}.
+ *
+ * @since 1.0.0
  */
 
 struct Lexed {
@@ -34,6 +40,14 @@ let outReady = false;
 
 /**
  * The shared output builder, emptied.
+ *
+ * @returns The module-level builder, cleared and ready for appending
+ *
+ * @remarks
+ * The builder is created with the C allocator on the first call and reused after that,
+ * so every helper that returns its text hands out a view that the next call to this function invalidates.
+ *
+ * @since 1.0.0
  */
 
 function cleared(): *Builder {
@@ -47,6 +61,14 @@ function cleared(): *Builder {
 
 /**
  * A NUL-terminated string as a slice.
+ *
+ * @param text - Pointer to the first byte of a NUL-terminated string
+ * @returns A slice over the bytes before the terminator
+ *
+ * @remarks
+ * The slice borrows the original bytes rather than copying them, so it lives only as long as they do.
+ *
+ * @since 1.0.0
  */
 
 function cString(text: readonly u8[*]): string {
@@ -57,39 +79,70 @@ function cString(text: readonly u8[*]): string {
 
 /**
  * An empty diagnostic list.
+ *
+ * @returns A list without items, with an empty arena and an error count of zero
+ *
+ * @remarks
+ * The list owns no memory yet, so it is safe to free even when nothing reports into it.
+ *
+ * @since 1.0.0
  */
 
 function emptyList(): HxDiagList {
-    return HxDiagList { items: null, items_len: 0, items_cap: 0, arena: HxArena { head: null }, error_count: 0 };
+    return HxDiagList { items: null, itemsLen: 0, itemsCap: 0, arena: HxArena { head: null }, errorCount: 0 };
 }
 
 /**
  * Lexes a text as one file.
+ *
+ * @param lexed - State that receives the source, tokens, diagnostics, and result
+ * @param text - Source text to lex, named `test.hx`
+ *
+ * @remarks
+ * The diagnostics start empty before the run, so they hold only what this text reports.
+ *
+ * @since 1.0.0
  */
 
 function lex(lexed: *Lexed, text: string): void {
     lexed.diags = emptyList();
-    hx_source_from_string(&lexed.src, "test.hx", text.ptr, text.len);
-    lexed.ok = hx_lex(&lexed.src, &lexed.tokens, &lexed.diags);
+    hxSourceFromString(&lexed.src, "test.hx", text.ptr, text.len);
+    lexed.ok = hxLex(&lexed.src, &lexed.tokens, &lexed.diags);
 }
 
 /**
  * Releases everything that one run of the lexer allocated.
+ *
+ * @param lexed - State that {@link lex} filled
+ *
+ * @remarks
+ * It frees the tokens, the diagnostics, and the source, and leaves the state's own storage to the caller.
+ *
+ * @since 1.0.0
  */
 
 function release(lexed: *Lexed): void {
-    hx_tokens_free(&lexed.tokens);
-    hx_diag_list_free(&lexed.diags);
-    hx_source_free(&lexed.src);
+    hxTokensFree(&lexed.tokens);
+    hxDiagListFree(&lexed.diags);
+    hxSourceFree(&lexed.src);
 }
 
 /**
  * Every error message, one per line.
+ *
+ * @param lexed - State whose diagnostics to list
+ * @returns The messages, each followed by a newline, in the shared output builder
+ *
+ * @remarks
+ * Only the message text is printed, without positions or hints.
+ * The result lives in the builder from {@link cleared}, so the next helper call overwrites it.
+ *
+ * @since 1.0.0
  */
 
 function messages(lexed: readonly *Lexed): string {
     const b = cleared();
-    for (const i of 0..lexed.diags.items_len) {
+    for (const i of 0..lexed.diags.itemsLen) {
         unsafe {
             b.append(`${cString(lexed.diags.items![i].message)}\n`) catch unreachable;
         }
@@ -99,6 +152,16 @@ function messages(lexed: readonly *Lexed): string {
 
 /**
  * The token names of a text without the closing end-of-file token, or its errors when it does not lex.
+ *
+ * @param text - Source text to lex
+ * @returns The token names separated by spaces, or the error messages from {@link messages}
+ *
+ * @remarks
+ * When the last token is not `EOF`, the result ends with ` (ends with NAME)`,
+ * so a test catches a token stream that the lexer failed to close.
+ * The check only looks at the first letter of the name, so it relies on no other final token starting with `E`.
+ *
+ * @since 1.0.0
  */
 
 function kinds(text: string): string {
@@ -109,7 +172,7 @@ function kinds(text: string): string {
     const b = cleared();
     for (const i of 0..lexed.tokens.len) {
         unsafe {
-            const name = cString(hx_token_name(lexed.tokens.kinds![i] as u32));
+            const name = cString(hxTokenName(lexed.tokens.kinds![i] as u32));
             if (i + 1 == lexed.tokens.len) {
                 if (name[0] != 'E') b.append(` (ends with ${name})`) catch unreachable;
             } else {
@@ -122,6 +185,14 @@ function kinds(text: string): string {
 
 /**
  * The errors that lexing a text gives, one per line, or an empty string when it lexes.
+ *
+ * @param text - Source text to lex
+ * @returns The error messages from {@link messages}, or an empty string when the lexer succeeds
+ *
+ * @remarks
+ * Success comes from the lexer's return value rather than from the diagnostic count.
+ *
+ * @since 1.0.0
  */
 
 function errors(text: string): string {
@@ -132,7 +203,7 @@ function errors(text: string): string {
     return messages(&lexed);
 }
 
-describe("hx_lex") {
+describe("hxLex") {
     test("should give only the end of file for an empty file") {
         let lexed: Lexed = undefined;
         lex(&lexed, "");
@@ -221,7 +292,7 @@ describe("hx_lex") {
         defer release(&lexed);
 
         expect(lexed.ok).toBeTrue();
-        expect(lexed.tokens.docs_len).toBe(2);
+        expect(lexed.tokens.docsLen).toBe(2);
         unsafe {
             expect(lexed.tokens.docs![0].token).toBe(0);
             expect(lexed.tokens.docs![0].start).toBe(0);
@@ -277,7 +348,7 @@ describe("hx_lex") {
         defer release(&lexed);
 
         expect(lexed.ok).toBeFalse();
-        expect(lexed.diags.error_count).toBe(2);
+        expect(lexed.diags.errorCount).toBe(2);
         expect(lexed.tokens.len).toBe(6);
     }
 
@@ -297,56 +368,56 @@ describe("hx_lex") {
     }
 }
 
-describe("hx_lex_append") {
+describe("hxLexAppend") {
     test("should close each file with its own end of file") {
         let src: HxSource = undefined;
-        hx_source_from_string(&src, "a.hx", "a", 1);
-        defer hx_source_free(&src);
+        hxSourceFromString(&src, "a.hx", "a", 1);
+        defer hxSourceFree(&src);
         void addText(&src, "b.hx", "b c");
-        let tokens = HxTokens { kinds: null, starts: null, lens: null, len: 0, cap: 0, docs: null, docs_len: 0, docs_cap: 0 };
-        defer hx_tokens_free(&tokens);
+        let tokens = HxTokens { kinds: null, starts: null, lens: null, len: 0, cap: 0, docs: null, docsLen: 0, docsCap: 0 };
+        defer hxTokensFree(&tokens);
         let diags = emptyList();
-        defer hx_diag_list_free(&diags);
+        defer hxDiagListFree(&diags);
         unsafe {
-            void hx_lex_append(&src, files(&src)[0].start, files(&src)[0].end, &tokens, &diags);
-            void hx_lex_append(&src, files(&src)[1].start, files(&src)[1].end, &tokens, &diags);
+            void hxLexAppend(&src, files(&src)[0].start, files(&src)[0].end, &tokens, &diags);
+            void hxLexAppend(&src, files(&src)[1].start, files(&src)[1].end, &tokens, &diags);
         }
 
         expect(tokens.len).toBe(5);
         unsafe {
-            expect(cString(hx_token_name(tokens.kinds![1] as u32))).toBe("EOF");
+            expect(cString(hxTokenName(tokens.kinds![1] as u32))).toBe("EOF");
             expect(tokens.starts![1]).toBe(1);
             expect(tokens.starts![2]).toBe(2);
-            expect(cString(hx_token_name(tokens.kinds![4] as u32))).toBe("EOF");
+            expect(cString(hxTokenName(tokens.kinds![4] as u32))).toBe("EOF");
         }
     }
 
     test("should report success for its own file whatever earlier runs reported") {
         let src: HxSource = undefined;
-        hx_source_from_string(&src, "a.hx", "#", 1);
-        defer hx_source_free(&src);
+        hxSourceFromString(&src, "a.hx", "#", 1);
+        defer hxSourceFree(&src);
         void addText(&src, "b.hx", "b");
-        let tokens = HxTokens { kinds: null, starts: null, lens: null, len: 0, cap: 0, docs: null, docs_len: 0, docs_cap: 0 };
-        defer hx_tokens_free(&tokens);
+        let tokens = HxTokens { kinds: null, starts: null, lens: null, len: 0, cap: 0, docs: null, docsLen: 0, docsCap: 0 };
+        defer hxTokensFree(&tokens);
         let diags = emptyList();
-        defer hx_diag_list_free(&diags);
+        defer hxDiagListFree(&diags);
         unsafe {
-            expect(hx_lex_append(&src, files(&src)[0].start, files(&src)[0].end, &tokens, &diags)).toBeFalse();
-            expect(hx_lex_append(&src, files(&src)[1].start, files(&src)[1].end, &tokens, &diags)).toBeTrue();
+            expect(hxLexAppend(&src, files(&src)[0].start, files(&src)[0].end, &tokens, &diags)).toBeFalse();
+            expect(hxLexAppend(&src, files(&src)[1].start, files(&src)[1].end, &tokens, &diags)).toBeTrue();
         }
     }
 }
 
-describe("hx_tokens_free") {
+describe("hxTokensFree") {
     test("should leave the token stream empty") {
         let lexed: Lexed = undefined;
         lex(&lexed, "/** doc */ a");
-        hx_tokens_free(&lexed.tokens);
+        hxTokensFree(&lexed.tokens);
 
         expect(lexed.tokens.len).toBe(0);
         expect(lexed.tokens.kinds).toBeNull();
         expect(lexed.tokens.docs).toBeNull();
-        hx_diag_list_free(&lexed.diags);
-        hx_source_free(&lexed.src);
+        hxDiagListFree(&lexed.diags);
+        hxSourceFree(&lexed.src);
     }
 }

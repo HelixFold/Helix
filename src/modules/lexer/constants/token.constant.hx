@@ -2,13 +2,13 @@
  * The kind of a token.
  *
  * @remarks
- * The lexer stores one byte per token, and the order matches {@link TOKEN_NAMES} and {@link TOKEN_SPELLINGS}.
- * Members run from the end marker through literals and punctuation to the keywords, which come last in alphabetical order,
- * so {@link isKeyword} is a range check.
+ * The lexer stores one byte per token, and the order matches {@link TokenNames} and {@link TokenSpellings}.
+ * Members run from the end marker through literals and punctuation to the keywords,
+ * which come last in alphabetical order, so {@link isKeyword} is a range check.
  *
  * @example
- * ```ts
- * hx_token_name(TokenKind.KwConst as u32); // 'KW_CONST'
+ * ```hx
+ * hxTokenName(TokenKind.KwConst as u32); // 'KW_CONST'
  * spelling(TokenKind.Arrow);              // '=>'
  * ```
  *
@@ -23,7 +23,7 @@ export enum TokenKind: u8 {
      * Every run of the lexer ends with exactly one, of length 0.
      *
      * @example
-     * ```ts
+     * ```hx
      * // 'a' lexes as IDENT EOF
      * ```
      *
@@ -39,7 +39,7 @@ export enum TokenKind: u8 {
      * The lexer reports it and moves on, so one run finds every lexical error.
      *
      * @example
-     * ```ts
+     * ```hx
      * a # b   // IDENT INVALID IDENT
      * ```
      *
@@ -55,7 +55,7 @@ export enum TokenKind: u8 {
      * A name starts with an ASCII letter or `_` and goes on with letters, digits, and `_`.
      *
      * @example
-     * ```ts
+     * ```hx
      * const count = 1;   // count
      * ```
      *
@@ -68,7 +68,7 @@ export enum TokenKind: u8 {
      * A builtin name, which is `@` followed by an identifier.
      *
      * @example
-     * ```ts
+     * ```hx
      * @sizeOf(Point);   // @sizeOf
      * ```
      *
@@ -84,7 +84,7 @@ export enum TokenKind: u8 {
      * Digits may be separated by `_`.
      *
      * @example
-     * ```ts
+     * ```hx
      * 0xFF 0o755 0b1010 1_000_000
      * ```
      *
@@ -100,7 +100,7 @@ export enum TokenKind: u8 {
      * A fraction needs a digit after the dot, so `0..n` stays a range.
      *
      * @example
-     * ```ts
+     * ```hx
      * 3.14 1e9 2.5e-3
      * ```
      *
@@ -113,7 +113,7 @@ export enum TokenKind: u8 {
      * A string literal in double quotes.
      *
      * @example
-     * ```ts
+     * ```hx
      * "hello\n"
      * ```
      *
@@ -126,7 +126,7 @@ export enum TokenKind: u8 {
      * A character literal in single quotes.
      *
      * @example
-     * ```ts
+     * ```hx
      * 'a' '\n' '\u{E9}'
      * ```
      *
@@ -139,7 +139,7 @@ export enum TokenKind: u8 {
      * A template literal without any substitution.
      *
      * @example
-     * ```ts
+     * ```hx
      * `plain text`
      * ```
      *
@@ -152,7 +152,7 @@ export enum TokenKind: u8 {
      * The text of a template literal from its opening backtick up to the first `${`.
      *
      * @example
-     * ```ts
+     * ```hx
      * `a ${x} b`   // `a ${
      * ```
      *
@@ -165,7 +165,7 @@ export enum TokenKind: u8 {
      * The text of a template literal between two substitutions.
      *
      * @example
-     * ```ts
+     * ```hx
      * `${a} and ${b}`   // } and ${
      * ```
      *
@@ -178,7 +178,7 @@ export enum TokenKind: u8 {
      * The text of a template literal from the last substitution up to its closing backtick.
      *
      * @example
-     * ```ts
+     * ```hx
      * `a ${x} b`   // } b`
      * ```
      *
@@ -191,7 +191,7 @@ export enum TokenKind: u8 {
      * The `(` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * add(1, 2)
      * ```
      *
@@ -204,7 +204,7 @@ export enum TokenKind: u8 {
      * The `)` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * add(1, 2)
      * ```
      *
@@ -217,7 +217,7 @@ export enum TokenKind: u8 {
      * The `{` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * { return 1; }
      * ```
      *
@@ -230,7 +230,7 @@ export enum TokenKind: u8 {
      * The `}` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * { return 1; }
      * ```
      *
@@ -243,7 +243,7 @@ export enum TokenKind: u8 {
      * The `[` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * items[0]
      * ```
      *
@@ -256,7 +256,7 @@ export enum TokenKind: u8 {
      * The `]` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * items[0]
      * ```
      *
@@ -269,7 +269,7 @@ export enum TokenKind: u8 {
      * The `,` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * add(1, 2)
      * ```
      *
@@ -282,7 +282,7 @@ export enum TokenKind: u8 {
      * The `;` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * let a = 1;
      * ```
      *
@@ -295,7 +295,7 @@ export enum TokenKind: u8 {
      * The `:` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * let a: i32 = 1;
      * ```
      *
@@ -308,7 +308,7 @@ export enum TokenKind: u8 {
      * The `.` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * point.x
      * ```
      *
@@ -321,7 +321,7 @@ export enum TokenKind: u8 {
      * The `..` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * items[1..3]
      * ```
      *
@@ -334,7 +334,7 @@ export enum TokenKind: u8 {
      * The `..=` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * for (const i of 0..=9) {}
      * ```
      *
@@ -347,7 +347,7 @@ export enum TokenKind: u8 {
      * The `...` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * extern "C" function printf(format: readonly u8[*], ...): i32;
      * ```
      *
@@ -360,7 +360,7 @@ export enum TokenKind: u8 {
      * The `=>` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * (x: i32): i32 => x * 2
      * ```
      *
@@ -373,7 +373,7 @@ export enum TokenKind: u8 {
      * The `?` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * ok ? 1 : 0
      * ```
      *
@@ -386,7 +386,7 @@ export enum TokenKind: u8 {
      * The `?.` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * user?.name
      * ```
      *
@@ -399,7 +399,7 @@ export enum TokenKind: u8 {
      * The `??` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * name ?? "guest"
      * ```
      *
@@ -412,7 +412,7 @@ export enum TokenKind: u8 {
      * The `??=` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * name ??= "guest";
      * ```
      *
@@ -425,7 +425,7 @@ export enum TokenKind: u8 {
      * The `!` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * !done
      * ```
      *
@@ -438,7 +438,7 @@ export enum TokenKind: u8 {
      * The `=` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * x = 1;
      * ```
      *
@@ -451,7 +451,7 @@ export enum TokenKind: u8 {
      * The `+=` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * x += 1;
      * ```
      *
@@ -464,7 +464,7 @@ export enum TokenKind: u8 {
      * The `-=` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * x -= 1;
      * ```
      *
@@ -477,7 +477,7 @@ export enum TokenKind: u8 {
      * The `*=` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * x *= 2;
      * ```
      *
@@ -490,7 +490,7 @@ export enum TokenKind: u8 {
      * The `/=` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * x /= 2;
      * ```
      *
@@ -503,7 +503,7 @@ export enum TokenKind: u8 {
      * The `%=` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * x %= 2;
      * ```
      *
@@ -516,7 +516,7 @@ export enum TokenKind: u8 {
      * The `+%=` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * x +%= 1;
      * ```
      *
@@ -529,7 +529,7 @@ export enum TokenKind: u8 {
      * The `-%=` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * x -%= 1;
      * ```
      *
@@ -542,7 +542,7 @@ export enum TokenKind: u8 {
      * The `*%=` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * x *%= 2;
      * ```
      *
@@ -555,7 +555,7 @@ export enum TokenKind: u8 {
      * The `+|=` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * x +|= 1;
      * ```
      *
@@ -568,7 +568,7 @@ export enum TokenKind: u8 {
      * The `-|=` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * x -|= 1;
      * ```
      *
@@ -581,7 +581,7 @@ export enum TokenKind: u8 {
      * The `*|=` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * x *|= 2;
      * ```
      *
@@ -594,7 +594,7 @@ export enum TokenKind: u8 {
      * The `&=` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * flags &= mask;
      * ```
      *
@@ -607,7 +607,7 @@ export enum TokenKind: u8 {
      * The `|=` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * flags |= mask;
      * ```
      *
@@ -620,7 +620,7 @@ export enum TokenKind: u8 {
      * The `^=` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * flags ^= mask;
      * ```
      *
@@ -633,7 +633,7 @@ export enum TokenKind: u8 {
      * The `<<=` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * x <<= 1;
      * ```
      *
@@ -646,7 +646,7 @@ export enum TokenKind: u8 {
      * The `+` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a + b
      * ```
      *
@@ -659,7 +659,7 @@ export enum TokenKind: u8 {
      * The `-` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a - b
      * ```
      *
@@ -672,7 +672,7 @@ export enum TokenKind: u8 {
      * The `*` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a * b
      * ```
      *
@@ -685,7 +685,7 @@ export enum TokenKind: u8 {
      * The `/` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a / b
      * ```
      *
@@ -698,7 +698,7 @@ export enum TokenKind: u8 {
      * The `%` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a % b
      * ```
      *
@@ -711,7 +711,7 @@ export enum TokenKind: u8 {
      * The `+%` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a +% b
      * ```
      *
@@ -724,7 +724,7 @@ export enum TokenKind: u8 {
      * The `-%` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a -% b
      * ```
      *
@@ -737,7 +737,7 @@ export enum TokenKind: u8 {
      * The `*%` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a *% b
      * ```
      *
@@ -750,7 +750,7 @@ export enum TokenKind: u8 {
      * The `+|` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a +| b
      * ```
      *
@@ -763,7 +763,7 @@ export enum TokenKind: u8 {
      * The `-|` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a -| b
      * ```
      *
@@ -776,7 +776,7 @@ export enum TokenKind: u8 {
      * The `*|` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a *| b
      * ```
      *
@@ -789,7 +789,7 @@ export enum TokenKind: u8 {
      * The `++` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * i++;
      * ```
      *
@@ -802,7 +802,7 @@ export enum TokenKind: u8 {
      * The `--` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * i--;
      * ```
      *
@@ -815,7 +815,7 @@ export enum TokenKind: u8 {
      * The `==` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a == b
      * ```
      *
@@ -828,7 +828,7 @@ export enum TokenKind: u8 {
      * The `!=` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a != b
      * ```
      *
@@ -841,7 +841,7 @@ export enum TokenKind: u8 {
      * The `<` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a < b
      * ```
      *
@@ -854,7 +854,7 @@ export enum TokenKind: u8 {
      * The `<=` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a <= b
      * ```
      *
@@ -871,7 +871,7 @@ export enum TokenKind: u8 {
      * Nested generics such as `List<List<u8>>` then close without help from the parser.
      *
      * @example
-     * ```ts
+     * ```hx
      * a > b
      * ```
      *
@@ -887,7 +887,7 @@ export enum TokenKind: u8 {
      * There is no `>>=` token, so `>>=` lexes as `>` and `>=`, and the parser joins them.
      *
      * @example
-     * ```ts
+     * ```hx
      * a >= b
      * ```
      *
@@ -900,7 +900,7 @@ export enum TokenKind: u8 {
      * The `&&` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a && b
      * ```
      *
@@ -913,7 +913,7 @@ export enum TokenKind: u8 {
      * The `||` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a || b
      * ```
      *
@@ -926,7 +926,7 @@ export enum TokenKind: u8 {
      * The `&` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a & b
      * ```
      *
@@ -939,7 +939,7 @@ export enum TokenKind: u8 {
      * The `|` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a | b
      * ```
      *
@@ -952,7 +952,7 @@ export enum TokenKind: u8 {
      * The `^` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a ^ b
      * ```
      *
@@ -965,7 +965,7 @@ export enum TokenKind: u8 {
      * The `~` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * ~mask
      * ```
      *
@@ -978,7 +978,7 @@ export enum TokenKind: u8 {
      * The `<<` token.
      *
      * @example
-     * ```ts
+     * ```hx
      * a << 2
      * ```
      *
@@ -994,7 +994,7 @@ export enum TokenKind: u8 {
      * It is contextual, so it also serves as an identifier where a name is expected.
      *
      * @example
-     * ```ts
+     * ```hx
      * len as u64
      * ```
      *
@@ -1007,7 +1007,7 @@ export enum TokenKind: u8 {
      * The `break` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * break outer;
      * ```
      *
@@ -1020,7 +1020,7 @@ export enum TokenKind: u8 {
      * The `case` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * case .Admin: grant();
      * ```
      *
@@ -1033,7 +1033,7 @@ export enum TokenKind: u8 {
      * The `catch` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * find(id) catch null
      * ```
      *
@@ -1046,7 +1046,7 @@ export enum TokenKind: u8 {
      * The `comptime` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * comptime fib(10)
      * ```
      *
@@ -1059,7 +1059,7 @@ export enum TokenKind: u8 {
      * The `const` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * const limit = 10;
      * ```
      *
@@ -1072,7 +1072,7 @@ export enum TokenKind: u8 {
      * The `continue` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * continue;
      * ```
      *
@@ -1085,7 +1085,7 @@ export enum TokenKind: u8 {
      * The `default` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * default: deny();
      * ```
      *
@@ -1098,7 +1098,7 @@ export enum TokenKind: u8 {
      * The `defer` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * defer free(buffer);
      * ```
      *
@@ -1114,7 +1114,7 @@ export enum TokenKind: u8 {
      * It is contextual, so it also serves as an identifier where a name is expected.
      *
      * @example
-     * ```ts
+     * ```hx
      * let out: dyn Writer = file;
      * ```
      *
@@ -1127,7 +1127,7 @@ export enum TokenKind: u8 {
      * The `else` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * if (ok) a(); else b();
      * ```
      *
@@ -1140,7 +1140,7 @@ export enum TokenKind: u8 {
      * The `enum` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * enum Role { Admin, User }
      * ```
      *
@@ -1153,7 +1153,7 @@ export enum TokenKind: u8 {
      * The `errdefer` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * errdefer free(buffer);
      * ```
      *
@@ -1169,7 +1169,7 @@ export enum TokenKind: u8 {
      * It is contextual, so it also serves as an identifier where a name is expected.
      *
      * @example
-     * ```ts
+     * ```hx
      * error DbError { NotFound }
      * ```
      *
@@ -1182,7 +1182,7 @@ export enum TokenKind: u8 {
      * The `export` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * export function main(): void {}
      * ```
      *
@@ -1198,7 +1198,7 @@ export enum TokenKind: u8 {
      * It is contextual, so it also serves as an identifier where a name is expected.
      *
      * @example
-     * ```ts
+     * ```hx
      * function max<T extends Ord>(a: T, b: T): T
      * ```
      *
@@ -1211,7 +1211,7 @@ export enum TokenKind: u8 {
      * The `extern` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * extern "C" function free(ptr: ?u8[*]): void;
      * ```
      *
@@ -1224,7 +1224,7 @@ export enum TokenKind: u8 {
      * The `false` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * const done = false;
      * ```
      *
@@ -1237,7 +1237,7 @@ export enum TokenKind: u8 {
      * The `for` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * for (let i = 0; i < n; i++) {}
      * ```
      *
@@ -1253,7 +1253,7 @@ export enum TokenKind: u8 {
      * It is contextual, so it also serves as an identifier where a name is expected.
      *
      * @example
-     * ```ts
+     * ```hx
      * import { a } from "./a";
      * ```
      *
@@ -1266,7 +1266,7 @@ export enum TokenKind: u8 {
      * The `function` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * function add(a: i32, b: i32): i32
      * ```
      *
@@ -1279,7 +1279,7 @@ export enum TokenKind: u8 {
      * The `if` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * if (ready) start();
      * ```
      *
@@ -1292,7 +1292,7 @@ export enum TokenKind: u8 {
      * The `import` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * import * as fmt from "std/fmt";
      * ```
      *
@@ -1305,7 +1305,7 @@ export enum TokenKind: u8 {
      * The `interface` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * interface Writer { write(this: *Self, bytes: readonly u8[]): usize; }
      * ```
      *
@@ -1318,7 +1318,7 @@ export enum TokenKind: u8 {
      * The `let` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * let count = 0;
      * ```
      *
@@ -1331,7 +1331,7 @@ export enum TokenKind: u8 {
      * The `null` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * let user: ?User = null;
      * ```
      *
@@ -1347,7 +1347,7 @@ export enum TokenKind: u8 {
      * It is contextual, so it also serves as an identifier where a name is expected.
      *
      * @example
-     * ```ts
+     * ```hx
      * for (const item of items) {}
      * ```
      *
@@ -1363,7 +1363,7 @@ export enum TokenKind: u8 {
      * It is contextual, so it also serves as an identifier where a name is expected.
      *
      * @example
-     * ```ts
+     * ```hx
      * function sum(xs: readonly i32[]): i32
      * ```
      *
@@ -1376,7 +1376,7 @@ export enum TokenKind: u8 {
      * The `return` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * return a + b;
      * ```
      *
@@ -1389,7 +1389,7 @@ export enum TokenKind: u8 {
      * The `struct` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * struct Point { x: f32, y: f32 }
      * ```
      *
@@ -1402,7 +1402,7 @@ export enum TokenKind: u8 {
      * The `switch` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * switch (role) { default: deny(); }
      * ```
      *
@@ -1415,7 +1415,7 @@ export enum TokenKind: u8 {
      * The `throw` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * throw DbError.NotFound;
      * ```
      *
@@ -1428,7 +1428,7 @@ export enum TokenKind: u8 {
      * The `true` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * const done = true;
      * ```
      *
@@ -1441,7 +1441,7 @@ export enum TokenKind: u8 {
      * The `try` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * const user = try find(id);
      * ```
      *
@@ -1457,7 +1457,7 @@ export enum TokenKind: u8 {
      * It is contextual, so it also serves as an identifier where a name is expected.
      *
      * @example
-     * ```ts
+     * ```hx
      * type Bytes = u8[];
      * ```
      *
@@ -1470,7 +1470,7 @@ export enum TokenKind: u8 {
      * The `undefined` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * let buffer: u8[64] = undefined;
      * ```
      *
@@ -1483,7 +1483,7 @@ export enum TokenKind: u8 {
      * The `union` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * union Shape { circle: f32, empty }
      * ```
      *
@@ -1496,7 +1496,7 @@ export enum TokenKind: u8 {
      * The `unreachable` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * default: unreachable;
      * ```
      *
@@ -1509,7 +1509,7 @@ export enum TokenKind: u8 {
      * The `unsafe` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * unsafe { ptr[i] = 0; }
      * ```
      *
@@ -1522,7 +1522,7 @@ export enum TokenKind: u8 {
      * The `void` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * void advance(p);
      * ```
      *
@@ -1535,7 +1535,7 @@ export enum TokenKind: u8 {
      * The `while` keyword.
      *
      * @example
-     * ```ts
+     * ```hx
      * while (running) step();
      * ```
      *
@@ -1552,15 +1552,15 @@ export enum TokenKind: u8 {
  * The array is indexed by the kind, so its entries stay in the same order as the enum members.
  *
  * @example
- * ```ts
- * TOKEN_NAMES[TokenKind.KwConst as usize]; // 'KW_CONST'
- * TOKEN_NAMES[TokenKind.DotDot as usize];  // 'DOT_DOT'
+ * ```hx
+ * TokenNames[TokenKind.KwConst as usize]; // 'KW_CONST'
+ * TokenNames[TokenKind.DotDot as usize];  // 'DOT_DOT'
  * ```
  *
  * @since 1.0.0
  */
 
-export const TOKEN_NAMES: string[114] = [
+export const TokenNames: string[114] = [
     "EOF",
     "INVALID",
     "IDENT",
@@ -1685,15 +1685,15 @@ export const TOKEN_NAMES: string[114] = [
  * The array is indexed by the kind, so its entries stay in the same order as the enum members.
  *
  * @example
- * ```ts
- * TOKEN_SPELLINGS[TokenKind.Arrow as usize]; // '=>'
- * TOKEN_SPELLINGS[TokenKind.Ident as usize]; // 'identifier'
+ * ```hx
+ * TokenSpellings[TokenKind.Arrow as usize]; // '=>'
+ * TokenSpellings[TokenKind.Ident as usize]; // 'identifier'
  * ```
  *
  * @since 1.0.0
  */
 
-export const TOKEN_SPELLINGS: string[114] = [
+export const TokenSpellings: string[114] = [
     "end of file",
     "invalid token",
     "identifier",
@@ -1814,17 +1814,18 @@ export const TOKEN_SPELLINGS: string[114] = [
  * The deepest that template literals may nest inside each other's substitutions.
  *
  * @remarks
- * Past this depth the lexer reports an error and treats the `${` as a plain brace, so the rest of the file stays balanced.
+ * Past this depth the lexer reports an error and treats the `${` as a plain brace,
+ * so the rest of the file stays balanced.
  *
  * @example
- * ```ts
- * MAX_TEMPLATE_DEPTH; // 64
+ * ```hx
+ * MaxTemplateDepth; // 64
  * ```
  *
  * @since 1.0.0
  */
 
-export const MAX_TEMPLATE_DEPTH: u32 = 64;
+export const MaxTemplateDepth: u32 = 64;
 
 /**
  * Every printable ASCII character in order, from the space to `~`.
@@ -1833,11 +1834,11 @@ export const MAX_TEMPLATE_DEPTH: u32 = 64;
  * Messages slice a single character out of it, which avoids allocating a one-byte string.
  *
  * @example
- * ```ts
- * PRINTABLE['#' - 32..'#' - 31]; // '#'
+ * ```hx
+ * Printable['#' - 32..'#' - 31]; // '#'
  * ```
  *
  * @since 1.0.0
  */
 
-export const PRINTABLE = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+export const Printable = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
