@@ -2,11 +2,10 @@
  * Imports
  */
 
+import { MAX_JSON_DEPTH, EMPTY_JSON } from "@constants/json.constant";
 import { hx_alloc, hx_realloc, free } from "@components/memory.component";
 import { HxJson, Reader } from "@components/structs/json-component.struct";
-import {
-    JSON_NULL, JSON_BOOL, JSON_NUMBER, JSON_STRING, JSON_ARRAY, JSON_OBJECT, MAX_JSON_DEPTH, EMPTY_JSON,
-} from "@constants/json.constant";
+import { JSON_NULL, JSON_BOOL, JSON_NUMBER, JSON_STRING, JSON_ARRAY, JSON_OBJECT } from "@constants/json.constant";
 
 /**
  * The C library functions that the reader leans on.
