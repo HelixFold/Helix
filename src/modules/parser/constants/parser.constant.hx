@@ -6,14 +6,14 @@
  * Past it the parser reports one error and returns an invalid node.
  *
  * @example
- * ```ts
- * MAX_DEPTH; // 256
+ * ```hx
+ * MaxDepth; // 256
  * ```
  *
  * @since 1.0.0
  */
 
-export const MAX_DEPTH: u32 = 256;
+export const MaxDepth: u32 = 256;
 
 /**
  * The number of tokens that the parser scans after a `<` to decide whether it starts type arguments.
@@ -22,27 +22,27 @@ export const MAX_DEPTH: u32 = 256;
  * A `<` that the scan cannot settle within this many tokens is read as a less-than.
  *
  * @example
- * ```ts
- * GENERIC_LOOKAHEAD; // 64
+ * ```hx
+ * GenericLookahead; // 64
  * ```
  *
  * @since 1.0.0
  */
 
-export const GENERIC_LOOKAHEAD: u32 = 64;
+export const GenericLookahead: u32 = 64;
 
 /**
  * The most fixed sizes that one array type may stack, as in `f32[3][4]`.
  *
  * @example
- * ```ts
- * MAX_ARRAY_DIMS; // 16
+ * ```hx
+ * MaxArrayDims; // 16
  * ```
  *
  * @since 1.0.0
  */
 
-export const MAX_ARRAY_DIMS: u32 = 16;
+export const MaxArrayDims: u32 = 16;
 
 /**
  * The diagnostic index that marks an error the parser suppressed while it recovers from an earlier one.
@@ -51,15 +51,15 @@ export const MAX_ARRAY_DIMS: u32 = 16;
  * A hint attached to this index is dropped, so callers can attach hints without checking first.
  *
  * @example
- * ```ts
- * const diag = errorExpected(p, "a type"); // NO_DIAG while the parser is recovering
- * hint(p, diag, "...");                    // does nothing for NO_DIAG
+ * ```hx
+ * const diag = errorExpected(p, "a type"); // NoDiag while the parser is recovering
+ * attachHint(p, diag, "...");              // does nothing for NoDiag
  * ```
  *
  * @since 1.0.0
  */
 
-export const NO_DIAG: u32 = 0xFFFF_FFFF;
+export const NoDiag: u32 = 0xFFFF_FFFF;
 
 /**
  * The precedence of `??`, the loosest binary operator.
@@ -68,40 +68,40 @@ export const NO_DIAG: u32 = 0xFFFF_FFFF;
  * It is also the only right-associative one, so `a ?? b ?? c` reads as `a ?? (b ?? c)`.
  *
  * @example
- * ```ts
- * PREC_COALESCE; // 1
+ * ```hx
+ * PrecCoalesce; // 1
  * ```
  *
  * @since 1.0.0
  */
 
-export const PREC_COALESCE: u8 = 1;
+export const PrecCoalesce: u8 = 1;
 
 /**
  * The precedence of `||`.
  *
  * @example
- * ```ts
- * PREC_OR; // 2
+ * ```hx
+ * PrecOr; // 2
  * ```
  *
  * @since 1.0.0
  */
 
-export const PREC_OR: u8 = 2;
+export const PrecOr: u8 = 2;
 
 /**
  * The precedence of `&&`.
  *
  * @example
- * ```ts
- * PREC_AND; // 3
+ * ```hx
+ * PrecAnd; // 3
  * ```
  *
  * @since 1.0.0
  */
 
-export const PREC_AND: u8 = 3;
+export const PrecAnd: u8 = 3;
 
 /**
  * The precedence of the comparisons `==`, `!=`, `<`, `<=`, `>`, and `>=`.
@@ -110,14 +110,14 @@ export const PREC_AND: u8 = 3;
  * Comparisons do not chain, so `a < b < c` is an error.
  *
  * @example
- * ```ts
- * PREC_COMPARE; // 4
+ * ```hx
+ * PrecCompare; // 4
  * ```
  *
  * @since 1.0.0
  */
 
-export const PREC_COMPARE: u8 = 4;
+export const PrecCompare: u8 = 4;
 
 /**
  * The precedence of the bitwise `|`.
@@ -127,79 +127,79 @@ export const PREC_COMPARE: u8 = 4;
  * so `flags & MASK == 0` reads as `(flags & MASK) == 0`.
  *
  * @example
- * ```ts
- * PREC_BIT_OR; // 5
+ * ```hx
+ * PrecBitOr; // 5
  * ```
  *
  * @since 1.0.0
  */
 
-export const PREC_BIT_OR: u8 = 5;
+export const PrecBitOr: u8 = 5;
 
 /**
  * The precedence of the bitwise `^`.
  *
  * @example
- * ```ts
- * PREC_BIT_XOR; // 6
+ * ```hx
+ * PrecBitXor; // 6
  * ```
  *
  * @since 1.0.0
  */
 
-export const PREC_BIT_XOR: u8 = 6;
+export const PrecBitXor: u8 = 6;
 
 /**
  * The precedence of the bitwise `&`.
  *
  * @example
- * ```ts
- * PREC_BIT_AND; // 7
+ * ```hx
+ * PrecBitAnd; // 7
  * ```
  *
  * @since 1.0.0
  */
 
-export const PREC_BIT_AND: u8 = 7;
+export const PrecBitAnd: u8 = 7;
 
 /**
  * The precedence of the shifts `<<` and `>>`.
  *
  * @example
- * ```ts
- * PREC_SHIFT; // 8
+ * ```hx
+ * PrecShift; // 8
  * ```
  *
  * @since 1.0.0
  */
 
-export const PREC_SHIFT: u8 = 8;
+export const PrecShift: u8 = 8;
 
 /**
  * The precedence of `+`, `-`, and their wrapping and saturating forms.
  *
  * @example
- * ```ts
- * PREC_ADD; // 9
+ * ```hx
+ * PrecAdd; // 9
  * ```
  *
  * @since 1.0.0
  */
 
-export const PREC_ADD: u8 = 9;
+export const PrecAdd: u8 = 9;
 
 /**
  * The precedence of `*`, `/`, `%`, and their wrapping and saturating forms, the tightest binary operators.
  *
  * @example
- * ```ts
- * PREC_MUL; // 10
+ * ```hx
+ * PrecMul; // 10
  * ```
  *
  * @since 1.0.0
  */
 
-export const PREC_MUL: u8 = 10;
+export const PrecMul: u8 = 10;
 
 /**
  * The kind of list that the parser resynchronizes in after an error.
@@ -209,7 +209,7 @@ export const PREC_MUL: u8 = 10;
  * A `;` at the outer level always ends the skip, and a `}` ends it everywhere except at the top level.
  *
  * @example
- * ```ts
+ * ```hx
  * recover(p, Sync.Statement, before); // skip to the next statement
  * ```
  *
@@ -221,7 +221,7 @@ export enum Sync {
      * A list of statements, which resumes at a statement keyword, a case, a test, or a hook.
      *
      * @example
-     * ```ts
+     * ```hx
      * recover(p, Sync.Statement, before);
      * ```
      *
@@ -234,7 +234,7 @@ export enum Sync {
      * The top level of a file, which resumes at a declaration keyword or a test.
      *
      * @example
-     * ```ts
+     * ```hx
      * recover(p, Sync.Declaration, before);
      * ```
      *
@@ -247,7 +247,7 @@ export enum Sync {
      * The body of a struct, an enum, a union, or an interface, which resumes after a `,` or at a method.
      *
      * @example
-     * ```ts
+     * ```hx
      * recover(p, Sync.Member, before);
      * ```
      *
@@ -260,7 +260,7 @@ export enum Sync {
      * The body of a switch, which resumes at the next `case` or `default`.
      *
      * @example
-     * ```ts
+     * ```hx
      * recover(p, Sync.Case, before);
      * ```
      *
@@ -274,7 +274,7 @@ export enum Sync {
  * The kind of body that the container parser reads, which decides what each member looks like.
  *
  * @example
- * ```ts
+ * ```hx
  * parseContainer(p, NodeKind.Enum, Members.Enum, flags);
  * ```
  *
@@ -286,7 +286,7 @@ export enum Members {
      * Fields with a type and an optional default, plus methods and constants.
      *
      * @example
-     * ```ts
+     * ```hx
      * struct Point { x: f32 = 0, y: f32 }
      * ```
      *
@@ -299,7 +299,7 @@ export enum Members {
      * Members with an optional value, plus methods and constants.
      *
      * @example
-     * ```ts
+     * ```hx
      * enum Role: u8 { Admin = 1, User }
      * ```
      *
@@ -312,7 +312,7 @@ export enum Members {
      * Variants with an optional payload type, plus methods and constants.
      *
      * @example
-     * ```ts
+     * ```hx
      * union Shape { circle: f32, empty }
      * ```
      *
@@ -325,7 +325,7 @@ export enum Members {
      * Method signatures without bodies.
      *
      * @example
-     * ```ts
+     * ```hx
      * interface Writer { write(this: *Self, bytes: readonly u8[]): usize; }
      * ```
      *

@@ -4,22 +4,24 @@
 
 import { Builder } from "std/fmt";
 import { strlen, free } from "std/c";
-import { NodeKind, NO_TOKEN } from "@constants/ast.constant";
-import { hx_diag_list_free } from "@models/diagnostic.model";
+import { hxDiagListFree } from "@models/diagnostic.model";
+import { NodeKind, NoToken } from "@constants/ast.constant";
 import { cAllocator, equal, startsWith, endsWith } from "std";
 import { HxSource } from "@models/structs/source-model.struct";
+import { hxAstPrint } from "@components/ast-printer.component";
 import { HxArena } from "@services/structs/arena-service.struct";
-import { hx_ast_print } from "@components/ast-printer.component";
 import { HxAst, HxFnData } from "@models/structs/ast-model.struct";
 import { HxDiagList } from "@models/structs/diagnostic-model.struct";
 import { HxTokens } from "@modules/lexer/structs/lexer-module.struct";
-import { hx_parse, hx_parse_module } from "@modules/parser/parser.module";
-import { hx_lex, hx_lex_append, hx_tokens_free } from "@modules/lexer/lexer.module";
-import { addText, files, hx_source_from_string, hx_source_free } from "@models/source.model";
-import { hx_ast_init, hx_ast_free, node, extraAt, record, tokenText } from "@models/ast.model";
+import { hxParse, hxParseModule } from "@modules/parser/parser.module";
+import { hxLex, hxLexAppend, hxTokensFree } from "@modules/lexer/lexer.module";
+import { addText, files, hxSourceFromString, hxSourceFree } from "@models/source.model";
+import { hxAstInit, hxAstFree, node, extraAt, record, tokenText } from "@models/ast.model";
 
 /**
  * The C library functions that capture the printed tree in memory.
+ *
+ * @since 1.0.0
  */
 
 extern "C" function open_memstream(buf: *?u8[*], len: *usize): ?u8[*];
@@ -31,6 +33,12 @@ extern "C" function fclose(file: ?u8[*]): i32;
 
 /**
  * A source, its tokens, its tree, and its diagnostics after one parse.
+ *
+ * @remarks
+ * The `ok` field is true only when both the lexer and the parser succeed.
+ * The tree points at the source and tokens stored beside it, so the state must not move after {@link parse} fills it.
+ *
+ * @since 1.0.0
  */
 
 struct Parsed {
@@ -46,6 +54,14 @@ let outReady = false;
 
 /**
  * The shared output builder, emptied.
+ *
+ * @returns The module-level builder, cleared and ready for appending
+ *
+ * @remarks
+ * The builder is created with the C allocator on the first call and reused after that,
+ * so every helper that returns its text hands out a view that the next call to this function invalidates.
+ *
+ * @since 1.0.0
  */
 
 function cleared(): *Builder {
@@ -59,6 +75,14 @@ function cleared(): *Builder {
 
 /**
  * A NUL-terminated string as a slice.
+ *
+ * @param text - Pointer to the first byte of a NUL-terminated string
+ * @returns A slice over the bytes before the terminator
+ *
+ * @remarks
+ * The slice borrows the original bytes rather than copying them, so it lives only as long as they do.
+ *
+ * @since 1.0.0
  */
 
 function cString(text: readonly u8[*]): string {
@@ -69,33 +93,57 @@ function cString(text: readonly u8[*]): string {
 
 /**
  * Lexes and parses a text into a state that must stay where it is, since the tree points at its source and tokens.
+ *
+ * @param p - State that receives the source, tokens, tree, diagnostics, and result
+ * @param text - Source text to parse, named `test.hx`
+ *
+ * @remarks
+ * The parser runs even when the lexer fails, so the diagnostics can hold errors from both stages.
+ *
+ * @since 1.0.0
  */
 
 function parse(p: *Parsed, text: string): void {
-    p.diags = HxDiagList { items: null, items_len: 0, items_cap: 0, arena: HxArena { head: null }, error_count: 0 };
-    hx_source_from_string(&p.src, "test.hx", text.ptr, text.len);
-    const lexed = hx_lex(&p.src, &p.tokens, &p.diags);
-    p.ok = hx_parse(&p.src, &p.tokens, &p.ast, &p.diags) && lexed;
+    p.diags = HxDiagList { items: null, itemsLen: 0, itemsCap: 0, arena: HxArena { head: null }, errorCount: 0 };
+    hxSourceFromString(&p.src, "test.hx", text.ptr, text.len);
+    const lexed = hxLex(&p.src, &p.tokens, &p.diags);
+    p.ok = hxParse(&p.src, &p.tokens, &p.ast, &p.diags) && lexed;
 }
 
 /**
  * Releases everything that one parse allocated.
+ *
+ * @param p - State that {@link parse} filled
+ *
+ * @remarks
+ * It frees the tree, the tokens, the diagnostics, and the source, and leaves the state's own storage to the caller.
+ *
+ * @since 1.0.0
  */
 
 function release(p: *Parsed): void {
-    hx_ast_free(&p.ast);
-    hx_tokens_free(&p.tokens);
-    hx_diag_list_free(&p.diags);
-    hx_source_free(&p.src);
+    hxAstFree(&p.ast);
+    hxTokensFree(&p.tokens);
+    hxDiagListFree(&p.diags);
+    hxSourceFree(&p.src);
 }
 
 /**
  * Every diagnostic, one per line, with its hint.
+ *
+ * @param p - State whose diagnostics to list
+ * @returns The messages, each followed by a newline, in the shared output builder
+ *
+ * @remarks
+ * A diagnostic with a hint prints it after the message as ` (hint: TEXT)`.
+ * The result lives in the builder from {@link cleared}, so the next helper call overwrites it.
+ *
+ * @since 1.0.0
  */
 
 function messages(p: readonly *Parsed): string {
     const b = cleared();
-    for (const i of 0..p.diags.items_len) {
+    for (const i of 0..p.diags.itemsLen) {
         unsafe {
             const d = p.diags.items![i];
             b.append(`${cString(d.message)}`) catch unreachable;
@@ -108,13 +156,22 @@ function messages(p: readonly *Parsed): string {
 
 /**
  * A node as a one-line S-expression.
+ *
+ * @param ast - Tree that holds the node
+ * @param id - Index of the node to print
+ * @returns The printed node without its trailing newline, in the shared output builder
+ *
+ * @remarks
+ * The printer writes into an in-memory stream, which is copied into the builder from {@link cleared} and then freed.
+ *
+ * @since 1.0.0
  */
 
 function printed(ast: readonly *HxAst, id: u32): string {
     let buf: ?u8[*] = null;
     let len: usize = 0;
     const file = open_memstream(&buf, &len);
-    hx_ast_print(ast, id, file, false);
+    hxAstPrint(ast, id, file, false);
     void fclose(file);
     const b = cleared();
     unsafe {
@@ -126,6 +183,16 @@ function printed(ast: readonly *HxAst, id: u32): string {
 
 /**
  * An item of the child list of a node, or 0 past its end.
+ *
+ * @param ast - Tree that holds the node
+ * @param id - Index of a node whose `a` and `b` fields bound a range of extra data
+ * @param i - Position of the item within that range
+ * @returns The node index stored at that position, or 0 when the position is past the end
+ *
+ * @remarks
+ * The 0 result doubles as a sentinel, so a caller cannot tell an empty list from a stored 0.
+ *
+ * @since 1.0.0
  */
 
 function listItem(ast: readonly *HxAst, id: u32, i: u32): u32 {
@@ -135,6 +202,14 @@ function listItem(ast: readonly *HxAst, id: u32, i: u32): u32 {
 
 /**
  * The first declaration of a source, printed, or its errors when it does not parse.
+ *
+ * @param source - Source text of a whole file
+ * @returns The first top-level item from {@link printed}, or the diagnostics from {@link messages}
+ *
+ * @remarks
+ * Any further declarations still parse, but only the first one reaches the result.
+ *
+ * @since 1.0.0
  */
 
 function decl(source: string): string {
@@ -147,6 +222,16 @@ function decl(source: string): string {
 
 /**
  * A statement parsed inside a function and printed, or its errors when it does not parse.
+ *
+ * @param statement - Source text of one statement
+ * @returns The first statement of the body, printed, the diagnostics, or `(not a function)`
+ *
+ * @remarks
+ * The statement is wrapped as `function f() { ... }` and copied into a 1024-byte buffer before parsing,
+ * so a statement must fit in that buffer together with the wrapper.
+ * The `(not a function)` result appears only when the first declaration is not a function.
+ *
+ * @since 1.0.0
  */
 
 function stmt(statement: string): string {
@@ -166,6 +251,15 @@ function stmt(statement: string): string {
 
 /**
  * The right-hand side of an assignment to x, printed.
+ *
+ * @param e - Source text of one expression
+ * @returns The printed expression, or the whole result of {@link stmt} when it is not an assignment to `x`
+ *
+ * @remarks
+ * The expression is parsed as the statement `x = e`, and the surrounding `(= x ` and `)` are stripped from the output.
+ * The statement buffer holds 512 bytes, so a longer expression does not fit.
+ *
+ * @since 1.0.0
  */
 
 function expr(e: string): string {
@@ -180,6 +274,14 @@ function expr(e: string): string {
 
 /**
  * The diagnostics that a source gives, one per line with hints, or an empty string when it parses.
+ *
+ * @param source - Source text of a whole file
+ * @returns The diagnostics from {@link messages}, or an empty string when the lexer and the parser both succeed
+ *
+ * @remarks
+ * Success comes from the results of both stages rather than from the diagnostic count.
+ *
+ * @since 1.0.0
  */
 
 function errorsOf(source: string): string {
@@ -190,7 +292,7 @@ function errorsOf(source: string): string {
     return messages(&p);
 }
 
-describe("hx_parse") {
+describe("hxParse") {
     describe("declarations") {
         test("should parse imports and re-exports") {
             expect(decl("import { a, b as c } from \"std\";")).toBe("(import \"std\" (a) (b as c))");
@@ -443,7 +545,7 @@ describe("hx_parse") {
             let p: Parsed = undefined;
             parse(&p, "function f() { let = 1; x = ; y = 2; }");
             defer release(&p);
-            expect(p.diags.error_count).toBe(2);
+            expect(p.diags.errorCount).toBe(2);
         }
 
         test("should recover at the next declaration") {
@@ -455,7 +557,7 @@ describe("hx_parse") {
             let found = false;
             for (const i of file.a..file.b) {
                 const d = node(&p.ast, extraAt(&p.ast, i));
-                if (d.kind == NodeKind.Function && d.token != NO_TOKEN && equal(tokenText(&p.ast, d.token), "ok")) found = true;
+                if (d.kind == NodeKind.Function && d.token != NoToken && equal(tokenText(&p.ast, d.token), "ok")) found = true;
             }
             expect(found).toBeTrue();
         }
@@ -472,22 +574,22 @@ describe("hx_parse") {
     }
 }
 
-describe("hx_parse_module") {
+describe("hxParseModule") {
     test("should parse each file of a program up to its own end of file") {
         let p: Parsed = undefined;
-        p.diags = HxDiagList { items: null, items_len: 0, items_cap: 0, arena: HxArena { head: null }, error_count: 0 };
-        hx_source_from_string(&p.src, "a.hx", "const a = 1;", 12);
+        p.diags = HxDiagList { items: null, itemsLen: 0, itemsCap: 0, arena: HxArena { head: null }, errorCount: 0 };
+        hxSourceFromString(&p.src, "a.hx", "const a = 1;", 12);
         void addText(&p.src, "b.hx", "const b = 2; const c = 3;");
-        p.tokens = HxTokens { kinds: null, starts: null, lens: null, len: 0, cap: 0, docs: null, docs_len: 0, docs_cap: 0 };
+        p.tokens = HxTokens { kinds: null, starts: null, lens: null, len: 0, cap: 0, docs: null, docsLen: 0, docsCap: 0 };
         unsafe {
-            void hx_lex_append(&p.src, files(&p.src)[0].start, files(&p.src)[0].end, &p.tokens, &p.diags);
-            void hx_lex_append(&p.src, files(&p.src)[1].start, files(&p.src)[1].end, &p.tokens, &p.diags);
+            void hxLexAppend(&p.src, files(&p.src)[0].start, files(&p.src)[0].end, &p.tokens, &p.diags);
+            void hxLexAppend(&p.src, files(&p.src)[1].start, files(&p.src)[1].end, &p.tokens, &p.diags);
         }
-        hx_ast_init(&p.ast, &p.src, &p.tokens);
+        hxAstInit(&p.ast, &p.src, &p.tokens);
         defer release(&p);
         let ok = true;
-        const first = hx_parse_module(&p.ast, 0, &p.diags, &ok);
-        const second = hx_parse_module(&p.ast, 6, &p.diags, &ok);
+        const first = hxParseModule(&p.ast, 0, &p.diags, &ok);
+        const second = hxParseModule(&p.ast, 6, &p.diags, &ok);
 
         expect(ok).toBeTrue();
         expect(printed(&p.ast, first)).toBe("(file (const a _ 1))");
@@ -499,7 +601,7 @@ describe("hx_parse_module") {
         parse(&p, "const a = ;");
         defer release(&p);
         let ok = true;
-        void hx_parse_module(&p.ast, 0, &p.diags, &ok);
+        void hxParseModule(&p.ast, 0, &p.diags, &ok);
 
         expect(ok).toBeFalse();
     }
