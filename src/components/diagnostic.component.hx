@@ -2,11 +2,11 @@
  * Imports
  */
 
-import { cAllocator, free as freeItems } from "std";
 import * as fmt from "std/fmt";
+import { cAllocator, free as freeItems } from "std";
 import { HxSource } from "@models/structs/source-model.struct";
-import { files, hx_source_line_col, hx_source_line } from "@models/source.model";
 import { HxDiag, HxDiagList } from "@models/structs/diagnostic-model.struct";
+import { files, hx_source_line_col, hx_source_line } from "@models/source.model";
 import { TAB_WIDTH, RESET, BOLD, BLUE, LEVEL_LABELS, LEVEL_COLORS } from "@constants/diagnostic.constant";
 
 /**

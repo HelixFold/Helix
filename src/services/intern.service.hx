@@ -2,8 +2,8 @@
  * Imports
  */
 
-import { hx_alloc, hx_zalloc, hx_realloc, free } from "@components/memory.component";
 import { HxInternEntry, HxInterner } from "@services/structs/intern-service.struct";
+import { hx_alloc, hx_zalloc, hx_realloc, free } from "@components/memory.component";
 
 /**
  * Hashes a text with 32-bit FNV-1a.

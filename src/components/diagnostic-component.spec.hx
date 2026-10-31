@@ -5,8 +5,8 @@
 import { HxSource } from "@models/structs/source-model.struct";
 import { HxArena } from "@services/structs/arena-service.struct";
 import { HxDiagList } from "@models/structs/diagnostic-model.struct";
-import { DIAG_ERROR, DIAG_WARNING } from "@constants/diagnostic.constant";
 import { emit, hint, hx_diag_list_free } from "@models/diagnostic.model";
+import { DIAG_ERROR, DIAG_WARNING } from "@constants/diagnostic.constant";
 import { hx_source_from_string, hx_source_free } from "@models/source.model";
 import { hx_diag_render, hx_diag_render_location } from "@components/diagnostic.component";
 
