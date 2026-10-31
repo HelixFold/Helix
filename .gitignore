@@ -1,12 +1,16 @@
-# Object files and build outputs
-
-# Debug symbols (macOS puts them in .dSYM folders)
+# Helix build-cache
+.seed/
+.helix-cache/
 
 # Build directories
+helix-out/
+
+# Debug symbols (macOS puts them in .dSYM folders)
+*.dSYM/
 
 # macOS junk files
 .DS_Store
 
 # Editors
-.vscode/
 .idea/
+.vscode/
