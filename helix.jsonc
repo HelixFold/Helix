@@ -1,15 +1,15 @@
 {
-  "name": "helix",
-  "version": "1.0.0-alpha.0",
-  "description": "The Helix compiler",
-  "license": "MIT",
-  "helix": ">=1.0.0-alpha.0",
-  "aliases": {
-    "@constants": "src/constants",
-    "@structs": "src/structs",
-    "@components": "src/components",
-    "@services": "src/services",
-    "@models": "src/models",
-    "@modules": "src/modules"
-  }
+    "name": "helix",
+    "helix": ">=1.0.0-alpha.0",
+    "version": "1.0.0-alpha.0",
+    "license": "MIT",
+    "description": "The Helix compiler",
+    "aliases": {
+        "@models": "src/models",
+        "@structs": "src/structs",
+        "@modules": "src/modules",
+        "@services": "src/services",
+        "@constants": "src/constants",
+        "@components": "src/components"
+    }
 }
