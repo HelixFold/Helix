@@ -9,9 +9,10 @@ inputs:
 runs:
   using: composite
   steps:
-    # Intermediate stage: Helix has no published release yet, so the compiler comes from the archive committed in
-    # .github/bootstrap (built from @Data/compiler by tools/release/package.sh). Once a release is out, download the
-    # latest one instead, e.g.:
+    # Intermediate stage: Helix has no published release yet, so the compiler comes from the archives committed in
+    # .github/bootstrap: the toolchain (built from this repository for x86_64-linux), and the static LLVM that a
+    # program linking LLVM or libclang needs, which the compiler's own build does. Once a release is out, download
+    # both instead, e.g.:
     #   gh release download --repo HelixFold/Helix --pattern 'helix-*-x86_64-linux.tar.xz' --dir "$RUNNER_TEMP"
     # and delete .github/bootstrap.
     - name: Install Helix
@@ -19,6 +20,21 @@ runs:
       run: |
         tar -xJf .github/bootstrap/helix-1.0.0-alpha.0-x86_64-linux.tar.xz -C "$RUNNER_TEMP" --warning=no-unknown-keyword
         echo "$RUNNER_TEMP/helix-1.0.0-alpha.0-x86_64-linux" >> "$GITHUB_PATH"
+
+    # The toolchain's LLVM and C library in $HELIX_HOME, where every helix looks, the one built from this repository
+    # included: the static LLVM from its archive, the toolchain's own LLVM tools and clang headers, its prebuilt musl,
+    # and the sources it builds other C libraries from, so nothing is downloaded
+    - name: Install the toolchain's LLVM and C library
+      shell: bash
+      run: |
+        home="$HOME/.cache/helix"
+        mkdir -p "$home/llvm"
+        tar -xJf .github/bootstrap/helix-llvm-1.0.0-alpha.0-x86_64-linux.tar.xz -C "$home" --warning=no-unknown-keyword
+        ln -s "$RUNNER_TEMP/helix-1.0.0-alpha.0-x86_64-linux/lib/llvm/bin" "$home/llvm/bin"
+        ln -s "$RUNNER_TEMP/helix-1.0.0-alpha.0-x86_64-linux/lib/llvm/lib" "$home/llvm/lib"
+        ln -s "$RUNNER_TEMP/helix-1.0.0-alpha.0-x86_64-linux/lib/libc" "$home/libc"
+        ln -s "$RUNNER_TEMP/helix-1.0.0-alpha.0-x86_64-linux/lib/src" "$home/src"
+        echo "HELIX_HOME=$home" >> "$GITHUB_ENV"
 
     # Building for macOS links against Apple's SDK, which Helix can't ship; helix finds it through SDKROOT.
     - name: Cache the macOS SDK
