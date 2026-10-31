@@ -2,43 +2,33 @@
  * Imports
  */
 
-import * as fmt from "std/fmt";
 import { Build, Mode } from "std/build";
-
-/**
- * Every OS the compiler is released for.
- *
- * @since 1.0.0
- */
-
-const TARGETS: readonly string[] = [
-    "x86_64-linux", "aarch64-linux",
-    "x86_64-macos", "aarch64-macos",
-    "x86_64-windows", "aarch64-windows",
-];
 
 /**
  * The build script that `helix build` runs for the compiler.
  *
- * @param builder - The builder that records the options, artifacts, and steps of this build
+ * @param builder - The builder that records the artifacts and steps of this build
  * @returns Nothing, or the error that stopped the script from recording a step
  *
  * @remarks
- * The whole build of the compiler: `src/main.hx` built into one executable named `helix`, for this machine or the
- * OS that `--target` names, and the release, built in release-safe for every OS in {@link TARGETS}.
+ * The compiler is `src/main.hx`.
+ * Its C and native libraries are declared in helix.jsonc:
+ * `host.c` (what differs between macOS, Linux, and Windows) and LLVM with libclang,
+ * which the compiler that runs the build links from the folder of the LLVM it is linked to itself.
+ * The built compiler finds the standard library in the `lib` folder of this repository, two folders above
+ * `helix-out/bin`, and builds its runtime from `lib/rt` the first time it needs it.
  *
- * - **install** - the default step, which copies the executable into `helix-out/bin`
- * - **run** - builds the executable and runs it, passing on the arguments after `--`
- * - **test** - runs every spec under `src`
- * - **release** - builds the executable for every OS into `helix-out/release/<target>`
+ * - **install** - the default step, which builds `helix-out/bin/helix`
+ * - **run** - builds the compiler and runs it, passing on the arguments after `--`
+ * - **test** - runs every spec under `src`, linked with the same C and libraries as the compiler
+ * - **release** - builds the compiler in release-safe for this machine into `helix-out/release`
  *
  * @example
  * ```bash
- * helix build                                                # helix-out/bin/helix
- * helix build run                                            # Hello from Helix!
- * helix build test                                           # Tests:  3 passed, 3 total
- * helix build --target x86_64-windows --mode release-safe    # helix-out/bin/helix.exe
- * helix build release                                        # helix-out/release/<target>/helix, for every OS
+ * helix build                   # helix-out/bin/helix
+ * helix build run -- version    # helix 1.0.0-alpha.0 (LLVM 23.1.4)
+ * helix build test              # Tests:  ... passed
+ * helix build release           # helix-out/release/helix
  * ```
  *
  * @see Build
@@ -51,9 +41,7 @@ export function build(builder: *Build): void | Error {
     try builder.addRunStep(executable);
     try builder.addTestStep({ root: "src", linkWith: executable });
 
-    const release = try builder.step("release", "Build the compiler for every OS into helix-out/release/<target>");
-    for (const target of TARGETS) {
-        const released = try builder.addExecutable({ name: "helix", root: "src/main.hx", target, mode: Mode.ReleaseSafe });
-        try release.dependOn(try builder.addInstall(released, try fmt.alloc(builder.a, `release/${target}`)));
-    }
+    const release = try builder.step("release", "Build the compiler in release-safe for this machine into helix-out/release");
+    const released = try builder.addExecutable({ name: "helix", root: "src/main.hx", mode: Mode.ReleaseSafe });
+    try release.dependOn(try builder.addInstall(released, "release"));
 }
