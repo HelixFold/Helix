@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Every target is cross-compiled on Linux. Only x86_64-linux is the runner itself, so only it runs the
+        # program and the tests.
+        include:
+          - { target: aarch64-linux }
+          - { target: x86_64-windows }
+          - { target: aarch64-windows }
+          - { target: x86_64-macos, sdk: true }
+          - { target: x86_64-linux, test: true }
+          - { target: aarch64-macos, sdk: true }
+    env:
+      HELIX_VERSION: 1.0.0-alpha.0
+      MACOS_SDK: MacOSX26.1.sdk
+      MACOS_SDK_URL: https://github.com/joseluisq/macosx-sdks/releases/download/26.1/MacOSX26.1.sdk.tar.xz
+      MACOS_SDK_SHA256: beee7212d265a6d2867d0236cc069314b38d5fb3486a6515734e76fa210c784c
+    steps:
+      - uses: actions/checkout@v4
+
+      # Intermediate stage: Helix has no published release yet, so the compiler comes from the archive committed in
+      # .github/bootstrap (built from @Data/compiler by tools/release/package.sh). Once a release is out, replace
+      # this step with a download of the latest one, e.g.:
+      #   gh release download --repo HelixFold/Helix --pattern 'helix-*-x86_64-linux.tar.xz' --dir "$RUNNER_TEMP"
+      # and delete .github/bootstrap.
+      - name: Install Helix
+        run: |
+          tar -xJf .github/bootstrap/helix-$HELIX_VERSION-x86_64-linux.tar.xz -C "$RUNNER_TEMP" --warning=no-unknown-keyword
+          echo "$RUNNER_TEMP/helix-$HELIX_VERSION-x86_64-linux" >> "$GITHUB_PATH"
+
+      # Building for macOS links against Apple's SDK, which Helix can't ship; helix finds it through SDKROOT.
+      - name: Cache the macOS SDK
+        if: matrix.sdk
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/sdk
+          key: ${{ env.MACOS_SDK }}-${{ env.MACOS_SDK_SHA256 }}
+
+      - name: Install the macOS SDK
+        if: matrix.sdk
+        run: |
+          if [ ! -d "$RUNNER_TEMP/sdk/$MACOS_SDK" ]; then
+              curl -fsSL "$MACOS_SDK_URL" -o "$RUNNER_TEMP/sdk.tar.xz"
+              echo "$MACOS_SDK_SHA256  $RUNNER_TEMP/sdk.tar.xz" | sha256sum -c -
+              mkdir -p "$RUNNER_TEMP/sdk"
+              tar -xJf "$RUNNER_TEMP/sdk.tar.xz" -C "$RUNNER_TEMP/sdk"
+          fi
+          echo "SDKROOT=$RUNNER_TEMP/sdk/$MACOS_SDK" >> "$GITHUB_ENV"
+
+      - run: helix --version
+
+      - name: Build
+        run: helix build --target ${{ matrix.target }} --mode release-safe
+
+      - name: Run
+        if: matrix.test
+        run: helix build run
+
+      - name: Test
+        if: matrix.test
+        run: helix build test
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: helix-${{ matrix.target }}
+          path: helix-out/bin/
