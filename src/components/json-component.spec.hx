@@ -4,8 +4,8 @@
 
 import { strlen } from "std/c";
 import { HxJson } from "@components/structs/json-component.struct";
-import { JSON_NULL, JSON_BOOL, JSON_NUMBER, JSON_STRING, JSON_ARRAY, JSON_OBJECT } from "@constants/json.constant";
 import { hx_json_parse, hx_json_free, hx_json_get, hx_json_quote } from "@components/json.component";
+import { JSON_NULL, JSON_BOOL, JSON_NUMBER, JSON_STRING, JSON_ARRAY, JSON_OBJECT } from "@constants/json.constant";
 
 /**
  * Tests

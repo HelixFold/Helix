@@ -2,8 +2,8 @@
  * Imports
  */
 
-import { cAllocator, free as freeItems } from "std";
 import { readFile, FsError } from "std/fs";
+import { cAllocator, free as freeItems } from "std";
 import { EMPTY_SOURCE, NO_FILE } from "@constants/source.constant";
 import { hx_realloc, hx_strndup, free } from "@components/memory.component";
 import { HxSource, HxSourceFile, HxLineCol } from "@models/structs/source-model.struct";

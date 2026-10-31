@@ -2,8 +2,8 @@
  * Imports
  */
 
-import { cAllocator, free as freeItems } from "std";
 import * as fmt from "std/fmt";
+import { cAllocator, free as freeItems } from "std";
 import { DIAG_ERROR } from "@constants/diagnostic.constant";
 import { HxSource } from "@models/structs/source-model.struct";
 import { hx_vec_grow_impl, free } from "@components/memory.component";
