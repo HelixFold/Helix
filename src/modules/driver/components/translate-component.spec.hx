@@ -4,9 +4,10 @@
 
 import * as fmt from "std/fmt";
 import { cAllocator } from "std";
+import { macosSdk } from "@modules/driver/components/libc.component";
 import { translateC } from "@modules/driver/components/translate.component";
 import { TranslateOptions } from "@modules/driver/components/structs/translate-component.struct";
-import { tempDir, readText, writeText, makeDirs } from "@modules/driver/components/os.component";
+import { tempDir, readText, writeText, makeDirs, exists } from "@modules/driver/components/os.component";
 
 /**
  * Tests
@@ -28,6 +29,22 @@ const NoArgs: readonly string[] = [];
 
 function text(template: Format): string {
     return fmt.alloc(cAllocator(), template) catch unreachable;
+}
+
+/**
+ * Whether this machine has the C library headers, such as `stdio.h`.
+ *
+ * @returns `true` when a macOS SDK or `/usr/include/stdio.h` exists
+ *
+ * @remarks
+ * A bare container has no system headers,
+ * so the case that includes `stdio.h` runs only where the C library headers exist.
+ *
+ * @since 1.0.0
+ */
+
+function hasSystemHeaders(): bool {
+    return macosSdk() != null || exists("/usr/include/stdio.h");
 }
 
 /**
@@ -220,6 +237,7 @@ describe("translateC") {
     }
 
     test("should declare a struct from a system header as opaque") {
+        if (!hasSystemHeaders()) return;
         const module = translate("#include <stdio.h>\nvoid f(FILE *fp);\n");
 
         expect(module).toInclude("export extern \"C\" function f(fp: ?*FILE): void;\n");

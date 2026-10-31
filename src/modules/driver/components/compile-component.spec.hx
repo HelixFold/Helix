@@ -9,10 +9,10 @@ import * as os from "@modules/driver/components/os.component";
 import { ModeDebug } from "@modules/codegen/constants/base.constant";
 import { allocCString } from "@modules/driver/components/os.component";
 import { Options } from "@modules/driver/components/structs/compile-component.struct";
-import { addPackageArg, packageDir, cCompiler } from "@modules/driver/components/compile.component";
-import { applyChip, buildExecutable, defaultOptions } from "@modules/driver/components/compile.component";
-import { compileFront, compilationFree, clearPackageArgs } from "@modules/driver/components/compile.component";
-import { parseCompileOption, parseTarget, setOverlay, setQuiet } from "@modules/driver/components/compile.component";
+import { parseTarget, setOverlay, setQuiet } from "@modules/driver/components/compile.component";
+import { buildExecutable, defaultOptions, compileFront } from "@modules/driver/components/compile.component";
+import { addPackageArg, packageDir, cCompiler, applyChip } from "@modules/driver/components/compile.component";
+import { compilationFree, clearPackageArgs, parseCompileOption } from "@modules/driver/components/compile.component";
 
 /**
  * Tests
@@ -289,13 +289,14 @@ describe("parseTarget") {
         expect(parseTarget("x86_64-wasi")).toBeNull();
     }
 
-    test("should make this Mac the host target") {
-        const t = parseTarget(null) ?? unreachable;
+    test("should build for this machine when no target is given") {
+        const target = parseTarget(null) ?? unreachable;
         const native = parseTarget("native") ?? unreachable;
 
-        expect(t.host).toBeTrue();
-        expect(t.apple).toBeTrue();
-        expect(native.host).toBeTrue();
+        expect(target.triple).toBe(native.triple);
+        expect(target.host).toBe(native.host);
+        expect(target.host).toBe(target.apple);   // only a Mac builds as itself, other machines build static musl
+        expect(target.apple || target.musl).toBeTrue();
     }
 }
 
