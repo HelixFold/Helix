@@ -3,7 +3,7 @@
  */
 
 import { HxSha256 } from "@services/structs/sha256-service.struct";
-import { hx_sha256_init, hx_sha256_update, hx_sha256_finish, hx_sha256_hex } from "@services/sha256.service";
+import { hxSha256Init, hxSha256Update, hxSha256Finish, hxSha256Hex } from "@services/sha256.service";
 
 /**
  * Tests
@@ -12,23 +12,33 @@ import { hx_sha256_init, hx_sha256_update, hx_sha256_finish, hx_sha256_hex } fro
 let hexBuf: u8[65] = undefined;
 
 /**
- * The hex digest of a text repeated a number of times, fed one copy per update.
+ * Returns the hex digest of a text repeated a number of times.
+ *
+ * @param text - The text to feed
+ * @param repeat - The number of copies to feed, one per update
+ * @returns The 64 hex digits of the digest
+ *
+ * @remarks
+ * Feeding one copy per update tests the block buffering across calls.
+ * The result points into the shared `hexBuf`, so the next call overwrites it.
+ *
+ * @since 1.0.0
  */
 
 function digest(text: string, repeat: usize): string {
     let s: HxSha256 = undefined;
-    hx_sha256_init(&s);
-    for (const _ of 0..repeat) hx_sha256_update(&s, text.ptr, text.len);
+    hxSha256Init(&s);
+    for (const _ of 0..repeat) hxSha256Update(&s, text.ptr, text.len);
     let out: u8[32] = undefined;
-    hx_sha256_finish(&s, &out);
-    hx_sha256_hex(&out, &hexBuf);
+    hxSha256Finish(&s, &out);
+    hxSha256Hex(&out, &hexBuf);
     return hexBuf[0..64];
 }
 
-describe("hx_sha256_init") {
+describe("hxSha256Init") {
     test("should start with no bytes fed") {
         let s: HxSha256 = undefined;
-        hx_sha256_init(&s);
+        hxSha256Init(&s);
 
         expect(s.length).toBe(0);
         expect(s.used).toBe(0);
@@ -36,11 +46,11 @@ describe("hx_sha256_init") {
     }
 }
 
-describe("hx_sha256_update") {
+describe("hxSha256Update") {
     test("should count the bytes fed") {
         let s: HxSha256 = undefined;
-        hx_sha256_init(&s);
-        hx_sha256_update(&s, "abc", 3);
+        hxSha256Init(&s);
+        hxSha256Update(&s, "abc", 3);
 
         expect(s.length).toBe(3);
         expect(s.used).toBe(3);
@@ -48,8 +58,8 @@ describe("hx_sha256_update") {
 
     test("should ignore an update of zero bytes") {
         let s: HxSha256 = undefined;
-        hx_sha256_init(&s);
-        hx_sha256_update(&s, "abc", 0);
+        hxSha256Init(&s);
+        hxSha256Update(&s, "abc", 0);
 
         expect(s.length).toBe(0);
     }
@@ -59,7 +69,7 @@ describe("hx_sha256_update") {
     }
 }
 
-describe("hx_sha256_finish") {
+describe("hxSha256Finish") {
     test("should match the published vectors") {
         expect(digest("", 1)).toBe("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
         expect(digest("abc", 1)).toBe("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
@@ -75,11 +85,11 @@ describe("hx_sha256_finish") {
     }
 }
 
-describe("hx_sha256_hex") {
+describe("hxSha256Hex") {
     test("should write 64 lowercase hex digits and a NUL") {
         let bytes: u8[32] = undefined;
         for (const i of 0..32) bytes[i] = @truncate(u8, i * 8);
-        hx_sha256_hex(&bytes, &hexBuf);
+        hxSha256Hex(&bytes, &hexBuf);
         const text: string = hexBuf[0..8];
 
         expect(text).toBe("00081018");
