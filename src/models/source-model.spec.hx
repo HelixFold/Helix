@@ -6,8 +6,8 @@ import { strlen } from "std/c";
 import { writeFile, deleteFile } from "std/fs";
 import { NO_FILE } from "@constants/source.constant";
 import { HxSource } from "@models/structs/source-model.struct";
-import { hx_source_free, hx_source_line_col, hx_source_line } from "@models/source.model";
-import { files, addText, hx_source_add_file, hx_source_load, hx_source_from_string } from "@models/source.model";
+import { hx_source_add_file, hx_source_load, hx_source_from_string } from "@models/source.model";
+import { hx_source_free, hx_source_line_col, hx_source_line, files, addText } from "@models/source.model";
 
 /**
  * Tests
