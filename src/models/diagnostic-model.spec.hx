@@ -6,9 +6,9 @@ import { strlen } from "std/c";
 import { HxSource } from "@models/structs/source-model.struct";
 import { HxArena } from "@services/structs/arena-service.struct";
 import { HxDiagList } from "@models/structs/diagnostic-model.struct";
-import { hx_source_from_string, hx_source_free } from "@models/source.model";
-import { DIAG_ERROR, DIAG_WARNING, DIAG_NOTE } from "@constants/diagnostic.constant";
-import { emit, hint, hx_diag_list_free, emitf, hintf } from "@models/diagnostic.model";
+import { hxSourceFromString, hxSourceFree } from "@models/source.model";
+import { DiagError, DiagWarning, DiagNote } from "@constants/diagnostic.constant";
+import { emit, hint, hxDiagListFree, emitf, hintf } from "@models/diagnostic.model";
 
 /**
  * Tests
@@ -16,6 +16,15 @@ import { emit, hint, hx_diag_list_free, emitf, hintf } from "@models/diagnostic.
 
 /**
  * A NUL-terminated string as a slice.
+ *
+ * @param text - Pointer to the first byte of a NUL-terminated string
+ * @returns The bytes before the terminator, without copying them
+ *
+ * @remarks
+ * Measures the string with `strlen`, so the slice borrows the original memory
+ * and stays valid only as long as that memory does.
+ *
+ * @since 1.0.0
  */
 
 function cString(text: readonly u8[*]): string {
@@ -26,20 +35,27 @@ function cString(text: readonly u8[*]): string {
 
 /**
  * An empty diagnostic list.
+ *
+ * @returns A list without items, an empty arena, and an error count of zero
+ *
+ * @remarks
+ * Allocates nothing, so a test may free it with `hxDiagListFree` whether or not it emitted anything.
+ *
+ * @since 1.0.0
  */
 
 function emptyList(): HxDiagList {
-    return HxDiagList { items: null, items_len: 0, items_cap: 0, arena: HxArena { head: null }, error_count: 0 };
+    return HxDiagList { items: null, itemsLen: 0, itemsCap: 0, arena: HxArena { head: null }, errorCount: 0 };
 }
 
 describe("emit") {
     test("should add diagnostics in order and return their indexes") {
         let diags = emptyList();
-        defer hx_diag_list_free(&diags);
+        defer hxDiagListFree(&diags);
 
-        expect(emit(&diags, DIAG_ERROR, null, 0, 0, "first")).toBe(0);
-        expect(emit(&diags, DIAG_NOTE, null, 0, 0, "second")).toBe(1);
-        expect(diags.items_len).toBe(2);
+        expect(emit(&diags, DiagError, null, 0, 0, "first")).toBe(0);
+        expect(emit(&diags, DiagNote, null, 0, 0, "second")).toBe(1);
+        expect(diags.itemsLen).toBe(2);
         unsafe {
             expect(cString(diags.items![1].message)).toBe("second");
         }
@@ -47,21 +63,21 @@ describe("emit") {
 
     test("should count only errors") {
         let diags = emptyList();
-        defer hx_diag_list_free(&diags);
-        void emit(&diags, DIAG_ERROR, null, 0, 0, "an error");
-        void emit(&diags, DIAG_WARNING, null, 0, 0, "a warning");
-        void emit(&diags, DIAG_NOTE, null, 0, 0, "a note");
+        defer hxDiagListFree(&diags);
+        void emit(&diags, DiagError, null, 0, 0, "an error");
+        void emit(&diags, DiagWarning, null, 0, 0, "a warning");
+        void emit(&diags, DiagNote, null, 0, 0, "a note");
 
-        expect(diags.error_count).toBe(1);
+        expect(diags.errorCount).toBe(1);
     }
 
     test("should keep the span and the source") {
         let src: HxSource = undefined;
-        hx_source_from_string(&src, "main.hx", "let a = 1;", 10);
-        defer hx_source_free(&src);
+        hxSourceFromString(&src, "main.hx", "let a = 1;", 10);
+        defer hxSourceFree(&src);
         let diags = emptyList();
-        defer hx_diag_list_free(&diags);
-        void emit(&diags, DIAG_ERROR, &src, 4, 1, "here");
+        defer hxDiagListFree(&diags);
+        void emit(&diags, DiagError, &src, 4, 1, "here");
 
         unsafe {
             expect(diags.items![0].start).toBe(4);
@@ -73,9 +89,9 @@ describe("emit") {
 
     test("should copy the message, so the caller may reuse its own") {
         let diags = emptyList();
-        defer hx_diag_list_free(&diags);
+        defer hxDiagListFree(&diags);
         let message: u8[3] = ['a', 'b', 'c'];
-        void emit(&diags, DIAG_ERROR, null, 0, 0, &message);
+        void emit(&diags, DiagError, null, 0, 0, &message);
         message[0] = 'z';
 
         unsafe {
@@ -87,9 +103,9 @@ describe("emit") {
 describe("hint") {
     test("should attach a hint to the diagnostic at the index") {
         let diags = emptyList();
-        defer hx_diag_list_free(&diags);
-        void emit(&diags, DIAG_ERROR, null, 0, 0, "first");
-        const second = emit(&diags, DIAG_ERROR, null, 0, 0, "second");
+        defer hxDiagListFree(&diags);
+        void emit(&diags, DiagError, null, 0, 0, "first");
+        const second = emit(&diags, DiagError, null, 0, 0, "second");
         hint(&diags, second, "the fix");
 
         unsafe {
@@ -100,8 +116,8 @@ describe("hint") {
 
     test("should replace an earlier hint") {
         let diags = emptyList();
-        defer hx_diag_list_free(&diags);
-        const diag = emit(&diags, DIAG_ERROR, null, 0, 0, "message");
+        defer hxDiagListFree(&diags);
+        const diag = emit(&diags, DiagError, null, 0, 0, "message");
         hint(&diags, diag, "old");
         hint(&diags, diag, "new");
 
@@ -111,40 +127,40 @@ describe("hint") {
     }
 }
 
-describe("hx_diag_list_free") {
+describe("hxDiagListFree") {
     test("should leave the list empty and ready for reuse") {
         let diags = emptyList();
-        void emit(&diags, DIAG_ERROR, null, 0, 0, "message");
-        hx_diag_list_free(&diags);
+        void emit(&diags, DiagError, null, 0, 0, "message");
+        hxDiagListFree(&diags);
 
-        expect(diags.items_len).toBe(0);
-        expect(diags.error_count).toBe(0);
+        expect(diags.itemsLen).toBe(0);
+        expect(diags.errorCount).toBe(0);
         expect(diags.arena.head).toBeNull();
-        expect(emit(&diags, DIAG_ERROR, null, 0, 0, "again")).toBe(0);
-        hx_diag_list_free(&diags);
+        expect(emit(&diags, DiagError, null, 0, 0, "again")).toBe(0);
+        hxDiagListFree(&diags);
     }
 }
 
 describe("emitf") {
     test("should format the message from a template") {
         let diags = emptyList();
-        defer hx_diag_list_free(&diags);
+        defer hxDiagListFree(&diags);
         const what = "a name";
         const count: u32 = 2;
-        void emitf(&diags, DIAG_ERROR, null, 0, 0, `expected ${what}, found ${count}`);
+        void emitf(&diags, DiagError, null, 0, 0, `expected ${what}, found ${count}`);
 
         unsafe {
             expect(cString(diags.items![0].message)).toBe("expected a name, found 2");
         }
-        expect(diags.error_count).toBe(1);
+        expect(diags.errorCount).toBe(1);
     }
 }
 
 describe("hintf") {
     test("should format the hint from a template") {
         let diags = emptyList();
-        defer hx_diag_list_free(&diags);
-        const diag = emit(&diags, DIAG_ERROR, null, 0, 0, "message");
+        defer hxDiagListFree(&diags);
+        const diag = emit(&diags, DiagError, null, 0, 0, "message");
         const name = "beforeAll";
         hintf(&diags, diag, `write \`${name} { ... }\``);
 

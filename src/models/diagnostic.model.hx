@@ -4,17 +4,17 @@
 
 import * as fmt from "std/fmt";
 import { cAllocator, free as freeItems } from "std";
-import { DIAG_ERROR } from "@constants/diagnostic.constant";
+import { DiagError } from "@constants/diagnostic.constant";
 import { HxSource } from "@models/structs/source-model.struct";
-import { hx_vec_grow_impl, free } from "@components/memory.component";
-import { hx_arena_strndup, hx_arena_free } from "@services/arena.service";
+import { hxVecGrowImpl, free } from "@components/memory.component";
+import { hxArenaStrndup, hxArenaFree } from "@services/arena.service";
 import { HxDiag, HxDiagList } from "@models/structs/diagnostic-model.struct";
 
 /**
  * Adds a diagnostic to a list.
  *
  * @param list - The list to add to
- * @param level - The level, one of {@link DIAG_ERROR}, {@link DIAG_WARNING}, or {@link DIAG_NOTE}
+ * @param level - The level, one of {@link DiagError}, {@link DiagWarning}, or {@link DiagNote}
  * @param src - The source that the span points into, or `null` for a diagnostic without a location
  * @param start - The offset of the first byte of the span
  * @param len - The length of the span in bytes
@@ -25,8 +25,8 @@ import { HxDiag, HxDiagList } from "@models/structs/diagnostic-model.struct";
  * An error also raises the error count of the list.
  *
  * @example
- * ```ts
- * const diag = emit(&diags, DIAG_ERROR, &src, 40, 7, "unterminated string literal"); // 0
+ * ```hx
+ * const diag = emit(&diags, DiagError, &src, 40, 7, "unterminated string literal"); // 0
  * hint(&diags, diag, "close it with `\"`");
  * ```
  *
@@ -35,18 +35,18 @@ import { HxDiag, HxDiagList } from "@models/structs/diagnostic-model.struct";
  */
 
 export function emit(list: *HxDiagList, level: i32, src: ?readonly *HxSource, start: u32, len: u32, message: string): u32 {
-    const text = hx_arena_strndup(&list.arena, message.ptr, message.len);
-    if (list.items_len == list.items_cap) {
+    const text = hxArenaStrndup(&list.arena, message.ptr, message.len);
+    if (list.itemsLen == list.itemsCap) {
         unsafe {
-            hx_vec_grow_impl(@ptrCast(*?u8[*], &list.items), &list.items_cap, list.items_len + 1, @sizeOf(HxDiag));
+            hxVecGrowImpl(@ptrCast(*?u8[*], &list.items), &list.itemsCap, list.itemsLen + 1, @sizeOf(HxDiag));
         }
     }
     unsafe {
-        list.items![list.items_len] = HxDiag { level, src, start, len, message: text, hint: null };
+        list.items![list.itemsLen] = HxDiag { level, src, start, len, message: text, hint: null };
     }
-    list.items_len += 1;
-    if (level == DIAG_ERROR) list.error_count += 1;
-    return list.items_len - 1;
+    list.itemsLen += 1;
+    if (level == DiagError) list.errorCount += 1;
+    return list.itemsLen - 1;
 }
 
 /**
@@ -60,7 +60,7 @@ export function emit(list: *HxDiagList, level: i32, src: ?readonly *HxSource, st
  * A second hint on the same diagnostic replaces the first.
  *
  * @example
- * ```ts
+ * ```hx
  * hint(&diags, diag, "close it with `\"`");
  * // = hint: close it with `"`
  * ```
@@ -70,7 +70,7 @@ export function emit(list: *HxDiagList, level: i32, src: ?readonly *HxSource, st
  */
 
 export function hint(list: *HxDiagList, index: u32, message: string): void {
-    const text = hx_arena_strndup(&list.arena, message.ptr, message.len);
+    const text = hxArenaStrndup(&list.arena, message.ptr, message.len);
     unsafe {
         list.items![index].hint = text;
     }
@@ -85,31 +85,31 @@ export function hint(list: *HxDiagList, index: u32, message: string): void {
  * The list is left empty and can collect new diagnostics afterwards.
  *
  * @example
- * ```ts
- * hx_diag_list_free(&diags);
- * diags.items_len;   // 0
- * diags.error_count; // 0
+ * ```hx
+ * hxDiagListFree(&diags);
+ * diags.itemsLen;   // 0
+ * diags.errorCount; // 0
  * ```
  *
  * @since 1.0.0
  */
 
-export extern "C" function hx_diag_list_free(list: *HxDiagList): void {
+export extern "C" function hxDiagListFree(list: *HxDiagList): void {
     unsafe {
         free(@ptrCast(?u8[*], list.items));
     }
     list.items = null;
-    list.items_len = 0;
-    list.items_cap = 0;
-    hx_arena_free(&list.arena);
-    list.error_count = 0;
+    list.itemsLen = 0;
+    list.itemsCap = 0;
+    hxArenaFree(&list.arena);
+    list.errorCount = 0;
 }
 
 /**
  * Adds a diagnostic whose message is a template.
  *
  * @param list - The list to add to
- * @param level - The level, one of {@link DIAG_ERROR}, {@link DIAG_WARNING}, or {@link DIAG_NOTE}
+ * @param level - The level, one of {@link DiagError}, {@link DiagWarning}, or {@link DiagNote}
  * @param src - The source that the span points into, or `null` for a diagnostic without a location
  * @param start - The offset of the first byte of the span
  * @param len - The length of the span in bytes
@@ -121,8 +121,8 @@ export extern "C" function hx_diag_list_free(list: *HxDiagList): void {
  * When the template cannot be formatted for lack of memory, the diagnostic is still added with an empty message.
  *
  * @example
- * ```ts
- * emitf(&diags, DIAG_ERROR, &src, at, 1, `expected ${what}`);
+ * ```hx
+ * emitf(&diags, DiagError, &src, at, 1, `expected ${what}`);
  * ```
  *
  * @see emit
@@ -144,8 +144,13 @@ export function emitf(list: *HxDiagList, level: i32, src: ?readonly *HxSource, s
  * @param index - The index that {@link emit} or {@link emitf} returned
  * @param message - The template that gives the hint
  *
+ * @remarks
+ * Choose it over {@link hint} when the hint embeds a value.
+ * The formatted text lives only for the call, since {@link hint} copies it into the arena of the list.
+ * When the template cannot be formatted for lack of memory, the diagnostic gets an empty hint.
+ *
  * @example
- * ```ts
+ * ```hx
  * hintf(&diags, diag, `write \`${name} { ... }\``);
  * ```
  *

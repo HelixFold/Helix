@@ -15,7 +15,7 @@ import { HxTokens } from "@modules/lexer/structs/lexer-module.struct";
  * a child node, a token, a range of children in the extra array, or the index of a record there.
  *
  * @example
- * ```ts
+ * ```hx
  * // a + b
  * // { kind: Binary, op: BinOp.Add, token: 1, a: <a>, b: <b> }
  * ```
@@ -31,7 +31,7 @@ export extern "C" struct HxNode {
      * The kind of the node.
      *
      * @example
-     * ```ts
+     * ```hx
      * n.kind; // NodeKind.Binary
      * ```
      *
@@ -41,11 +41,11 @@ export extern "C" struct HxNode {
     kind: NodeKind,
 
     /**
-     * The `FLAG_` bits of the node, such as {@link FLAG_EXPORT}.
+     * The `Flag` constant bits of the node, such as {@link FlagExport}.
      *
      * @example
-     * ```ts
-     * n.flags & FLAG_EXPORT; // nonzero for an exported declaration
+     * ```hx
+     * n.flags & FlagExport; // nonzero for an exported declaration
      * ```
      *
      * @since 1.0.0
@@ -57,7 +57,7 @@ export extern "C" struct HxNode {
      * The operator of a binary operation or an assignment, or the mode of a test, a describe block, or a hook.
      *
      * @example
-     * ```ts
+     * ```hx
      * n.op; // BinOp.Add as u16 for a + b
      * ```
      *
@@ -67,10 +67,10 @@ export extern "C" struct HxNode {
     op: u16,
 
     /**
-     * The main token of the node, such as its name or its operator, or {@link NO_TOKEN}.
+     * The main token of the node, such as its name or its operator, or {@link NoToken}.
      *
      * @example
-     * ```ts
+     * ```hx
      * tokenText(&ast, n.token); // 'add' for function add() {}
      * ```
      *
@@ -83,7 +83,7 @@ export extern "C" struct HxNode {
      * The first slot, whose meaning depends on the kind.
      *
      * @example
-     * ```ts
+     * ```hx
      * n.a; // the left operand of a + b
      * ```
      *
@@ -96,7 +96,7 @@ export extern "C" struct HxNode {
      * The second slot, whose meaning depends on the kind.
      *
      * @example
-     * ```ts
+     * ```hx
      * n.b; // the right operand of a + b
      * ```
      *
@@ -113,7 +113,7 @@ export extern "C" struct HxNode {
  * A list of children, such as the arguments of a call, is stored as the node indexes from `start` up to `end`.
  *
  * @example
- * ```ts
+ * ```hx
  * const args = record<HxRange>(&ast, call.b);
  * for (const i of args.start..args.end) node(&ast, extraAt(&ast, i)); // each argument
  * ```
@@ -126,7 +126,7 @@ export extern "C" struct HxRange {
      * The index of the first entry.
      *
      * @example
-     * ```ts
+     * ```hx
      * range.start; // 4
      * ```
      *
@@ -139,7 +139,7 @@ export extern "C" struct HxRange {
      * The index one past the last entry.
      *
      * @example
-     * ```ts
+     * ```hx
      * range.end; // 6 for a list of two
      * ```
      *
@@ -152,10 +152,14 @@ export extern "C" struct HxRange {
 /**
  * The record of an `Import` node.
  *
+ * @remarks
+ * The parser stores it in the extra array and puts its index in the `a` slot of the node.
+ * A bare `import "./x";` names nothing, so its spec range is empty and its alias is {@link NoToken}.
+ *
  * @example
- * ```ts
+ * ```hx
  * // import * as fmt from "std/fmt";
- * // { path_token: <"std/fmt">, alias_token: <fmt>, specs_start: 0, specs_end: 0 }
+ * // { pathToken: <"std/fmt">, aliasToken: <fmt>, specsStart: 0, specsEnd: 0 }
  * ```
  *
  * @since 1.0.0
@@ -166,60 +170,64 @@ export extern "C" struct HxImportData {
      * The string token of the module path.
      *
      * @example
-     * ```ts
-     * tokenText(&ast, data.path_token); // '"std/fmt"'
+     * ```hx
+     * tokenText(&ast, data.pathToken); // '"std/fmt"'
      * ```
      *
      * @since 1.0.0
      */
 
-    path_token: u32,
+    pathToken: u32,
 
     /**
-     * The namespace name of an `import * as` form, or {@link NO_TOKEN}.
+     * The namespace name of an `import * as` form, or {@link NoToken}.
      *
      * @example
-     * ```ts
-     * tokenText(&ast, data.alias_token); // 'fmt'
+     * ```hx
+     * tokenText(&ast, data.aliasToken); // 'fmt'
      * ```
      *
      * @since 1.0.0
      */
 
-    alias_token: u32,
+    aliasToken: u32,
 
     /**
      * The start of the range of `ImportSpec` nodes.
      *
      * @example
-     * ```ts
-     * data.specs_end - data.specs_start; // 2 for import { a, b } from "./x";
+     * ```hx
+     * data.specsEnd - data.specsStart; // 2 for import { a, b } from "./x";
      * ```
      *
      * @since 1.0.0
      */
 
-    specs_start: u32,
+    specsStart: u32,
 
     /**
      * The end of the range of `ImportSpec` nodes.
      *
      * @example
-     * ```ts
-     * data.specs_end; // equal to specs_start when there are none
+     * ```hx
+     * data.specsEnd; // equal to specsStart when there are none
      * ```
      *
      * @since 1.0.0
      */
 
-    specs_end: u32,
+    specsEnd: u32,
 }
 
 /**
  * The record of a `Function`, `ArrowFunction`, or `TypeFunction` node.
  *
+ * @remarks
+ * The parser stores it in the extra array and puts its index in the `a` slot of the node.
+ * A function declared without a body keeps 0 in `body`, and a function without a return type keeps 0 in `returnType`.
+ *
  * @example
- * ```ts
+ * ```hx
  * // function max<T>(a: T, b: T): T { ... }
  * // one generic, two params, a return type, and a body
  * ```
@@ -232,72 +240,72 @@ export extern "C" struct HxFnData {
      * The start of the range of `GenericParam` nodes.
      *
      * @example
-     * ```ts
-     * fn.generics_end - fn.generics_start; // 1 for max<T>
+     * ```hx
+     * fn.genericsEnd - fn.genericsStart; // 1 for max<T>
      * ```
      *
      * @since 1.0.0
      */
 
-    generics_start: u32,
+    genericsStart: u32,
 
     /**
      * The end of the range of `GenericParam` nodes.
      *
      * @example
-     * ```ts
-     * fn.generics_end; // equal to generics_start without generics
+     * ```hx
+     * fn.genericsEnd; // equal to genericsStart without generics
      * ```
      *
      * @since 1.0.0
      */
 
-    generics_end: u32,
+    genericsEnd: u32,
 
     /**
      * The start of the range of `Param` nodes.
      *
      * @example
-     * ```ts
-     * fn.params_end - fn.params_start; // 2 for (a: T, b: T)
+     * ```hx
+     * fn.paramsEnd - fn.paramsStart; // 2 for (a: T, b: T)
      * ```
      *
      * @since 1.0.0
      */
 
-    params_start: u32,
+    paramsStart: u32,
 
     /**
      * The end of the range of `Param` nodes.
      *
      * @example
-     * ```ts
-     * fn.params_end; // equal to params_start without parameters
+     * ```hx
+     * fn.paramsEnd; // equal to paramsStart without parameters
      * ```
      *
      * @since 1.0.0
      */
 
-    params_end: u32,
+    paramsEnd: u32,
 
     /**
      * The return type, or 0 for `void`.
      *
      * @example
-     * ```ts
-     * fn.return_type; // 0 for function main()
+     * ```hx
+     * fn.returnType; // 0 for function main()
      * ```
      *
      * @since 1.0.0
      */
 
-    return_type: u32,
+    returnType: u32,
 
     /**
      * The body, or 0 for an extern function, an interface member, or a function type.
      *
      * @example
-     * ```ts
+     * ```hx
      * fn.body; // 0 for extern "C" function free(ptr: ?u8[*]): void;
      * ```
      *
@@ -307,17 +315,17 @@ export extern "C" struct HxFnData {
     body: u32,
 
     /**
-     * The string token of an `extern` ABI such as `"C"`, or {@link NO_TOKEN}.
+     * The string token of an `extern` ABI such as `"C"`, or {@link NoToken}.
      *
      * @example
-     * ```ts
-     * tokenText(&ast, fn.abi_token); // '"C"'
+     * ```hx
+     * tokenText(&ast, fn.abiToken); // '"C"'
      * ```
      *
      * @since 1.0.0
      */
 
-    abi_token: u32,
+    abiToken: u32,
 
     /**
      * The index of the first node of the declaration.
@@ -327,21 +335,25 @@ export extern "C" struct HxFnData {
      * which lets a later pass walk the whole declaration as one stretch of the node array.
      *
      * @example
-     * ```ts
-     * fn.first_node; // the first generic, parameter, or type node
+     * ```hx
+     * fn.firstNode; // the first generic, parameter, or type node
      * ```
      *
      * @since 1.0.0
      */
 
-    first_node: u32,
+    firstNode: u32,
 }
 
 /**
  * The record of a `Struct`, `Enum`, `Union`, `Interface`, or `TypeAlias` node.
  *
+ * @remarks
+ * The parser stores it in the extra array and puts its index in the `a` slot of the node.
+ * A type alias fills only the generic range and keeps its aliased type in the `b` slot of the node.
+ *
  * @example
- * ```ts
+ * ```hx
  * // enum Role: u8 { Admin, User }
  * // two members and a backing type
  * ```
@@ -354,86 +366,90 @@ export extern "C" struct HxContainerData {
      * The start of the range of `GenericParam` nodes.
      *
      * @example
-     * ```ts
-     * data.generics_end - data.generics_start; // 1 for struct Box<T>
+     * ```hx
+     * data.genericsEnd - data.genericsStart; // 1 for struct Box<T>
      * ```
      *
      * @since 1.0.0
      */
 
-    generics_start: u32,
+    genericsStart: u32,
 
     /**
      * The end of the range of `GenericParam` nodes.
      *
      * @example
-     * ```ts
-     * data.generics_end; // equal to generics_start without generics
+     * ```hx
+     * data.genericsEnd; // equal to genericsStart without generics
      * ```
      *
      * @since 1.0.0
      */
 
-    generics_end: u32,
+    genericsEnd: u32,
 
     /**
      * The start of the range of member nodes, which a type alias leaves empty.
      *
      * @example
-     * ```ts
-     * data.members_end - data.members_start; // 2 for enum Role { Admin, User }
+     * ```hx
+     * data.membersEnd - data.membersStart; // 2 for enum Role { Admin, User }
      * ```
      *
      * @since 1.0.0
      */
 
-    members_start: u32,
+    membersStart: u32,
 
     /**
      * The end of the range of member nodes.
      *
      * @example
-     * ```ts
-     * data.members_end; // equal to members_start for an empty body
+     * ```hx
+     * data.membersEnd; // equal to membersStart for an empty body
      * ```
      *
      * @since 1.0.0
      */
 
-    members_end: u32,
+    membersEnd: u32,
 
     /**
      * The backing type of an enum, or 0.
      *
      * @example
-     * ```ts
-     * data.backing_type; // the u8 of enum Role: u8
+     * ```hx
+     * data.backingType; // the u8 of enum Role: u8
      * ```
      *
      * @since 1.0.0
      */
 
-    backing_type: u32,
+    backingType: u32,
 
     /**
      * The index of the first node of the declaration, which a type alias leaves at 0.
      *
      * @example
-     * ```ts
-     * data.first_node; // the first generic or member node
+     * ```hx
+     * data.firstNode; // the first generic or member node
      * ```
      *
      * @since 1.0.0
      */
 
-    first_node: u32,
+    firstNode: u32,
 }
 
 /**
  * The record of a `Slice` node.
  *
+ * @remarks
+ * The parser stores it in the extra array and puts its index in the `b` slot of the node,
+ * while the `a` slot holds the value being sliced.
+ *
  * @example
- * ```ts
+ * ```hx
  * // items[2..]
  * // { start: <2>, end: 0 }
  * ```
@@ -446,7 +462,7 @@ export extern "C" struct HxSliceData {
      * The start bound, or 0 when it is left out.
      *
      * @example
-     * ```ts
+     * ```hx
      * data.start; // 0 for items[..3]
      * ```
      *
@@ -459,7 +475,7 @@ export extern "C" struct HxSliceData {
      * The end bound, or 0 when it is left out.
      *
      * @example
-     * ```ts
+     * ```hx
      * data.end; // 0 for items[2..]
      * ```
      *
@@ -472,10 +488,14 @@ export extern "C" struct HxSliceData {
 /**
  * The record of a `Ternary` node, whose condition sits in the node itself.
  *
+ * @remarks
+ * The parser stores it in the extra array and puts its index in the `b` slot of the node,
+ * since the `a` slot already holds the condition.
+ *
  * @example
- * ```ts
+ * ```hx
  * // ok ? 1 : 0
- * // { then_value: <1>, else_value: <0> }
+ * // { thenValue: <1>, elseValue: <0> }
  * ```
  *
  * @since 1.0.0
@@ -486,36 +506,40 @@ export extern "C" struct HxTernaryData {
      * The value when the condition holds.
      *
      * @example
-     * ```ts
-     * data.then_value; // the 1 of ok ? 1 : 0
+     * ```hx
+     * data.thenValue; // the 1 of ok ? 1 : 0
      * ```
      *
      * @since 1.0.0
      */
 
-    then_value: u32,
+    thenValue: u32,
 
     /**
      * The value when the condition does not hold.
      *
      * @example
-     * ```ts
-     * data.else_value; // the 0 of ok ? 1 : 0
+     * ```hx
+     * data.elseValue; // the 0 of ok ? 1 : 0
      * ```
      *
      * @since 1.0.0
      */
 
-    else_value: u32,
+    elseValue: u32,
 }
 
 /**
  * The record of a `Catch` node, whose left side sits in the node itself.
  *
+ * @remarks
+ * The parser stores it in the extra array and puts its index in the `b` slot of the node,
+ * since the `a` slot already holds the expression that may fail.
+ *
  * @example
- * ```ts
+ * ```hx
  * // find(id) catch (e) { log(e); }
- * // { capture_token: <e>, body: <block> }
+ * // { captureToken: <e>, body: <block> }
  * ```
  *
  * @since 1.0.0
@@ -523,23 +547,23 @@ export extern "C" struct HxTernaryData {
 
 export extern "C" struct HxCatchData {
     /**
-     * The name that captures the error, or {@link NO_TOKEN}.
+     * The name that captures the error, or {@link NoToken}.
      *
      * @example
-     * ```ts
-     * data.capture_token; // NO_TOKEN for find(id) catch null
+     * ```hx
+     * data.captureToken; // NoToken for find(id) catch null
      * ```
      *
      * @since 1.0.0
      */
 
-    capture_token: u32,
+    captureToken: u32,
 
     /**
      * The fallback, which is a block or an expression.
      *
      * @example
-     * ```ts
+     * ```hx
      * data.body; // the null of find(id) catch null
      * ```
      *
@@ -552,10 +576,14 @@ export extern "C" struct HxCatchData {
 /**
  * The record of a `Test` node.
  *
+ * @remarks
+ * The parser stores it in the extra array and puts its index in the `b` slot of the node.
+ * The token of the node holds the test name, and the `a` slot holds the body.
+ *
  * @example
- * ```ts
+ * ```hx
  * // test.panics("stops", "index out of bounds", { timeout: 100 }) {}
- * // { message_token: <"index out of bounds">, timeout_token: <100> }
+ * // { messageToken: <"index out of bounds">, timeoutToken: <100> }
  * ```
  *
  * @since 1.0.0
@@ -563,37 +591,41 @@ export extern "C" struct HxCatchData {
 
 export extern "C" struct HxTestData {
     /**
-     * The expected panic message of a `test.panics`, or {@link NO_TOKEN}.
+     * The expected panic message of a `test.panics`, or {@link NoToken}.
      *
      * @example
-     * ```ts
-     * tokenText(&ast, data.message_token); // '"index out of bounds"'
+     * ```hx
+     * tokenText(&ast, data.messageToken); // '"index out of bounds"'
      * ```
      *
      * @since 1.0.0
      */
 
-    message_token: u32,
+    messageToken: u32,
 
     /**
-     * The integer token of the timeout option in milliseconds, or {@link NO_TOKEN}.
+     * The integer token of the timeout option in milliseconds, or {@link NoToken}.
      *
      * @example
-     * ```ts
-     * tokenText(&ast, data.timeout_token); // '100'
+     * ```hx
+     * tokenText(&ast, data.timeoutToken); // '100'
      * ```
      *
      * @since 1.0.0
      */
 
-    timeout_token: u32,
+    timeoutToken: u32,
 }
 
 /**
  * The record of a `Case` node.
  *
+ * @remarks
+ * The parser stores it in the extra array and puts its index in the `a` slot of the node.
+ * The same record serves a statement switch and an expression switch, and only the meaning of `body` differs.
+ *
  * @example
- * ```ts
+ * ```hx
  * // case .Admin, .Owner if (active): grant();
  * // two patterns, a guard, and a body
  * ```
@@ -606,33 +638,33 @@ export extern "C" struct HxCaseData {
      * The start of the range of pattern nodes.
      *
      * @example
-     * ```ts
-     * data.patterns_end - data.patterns_start; // 2 for case .Admin, .Owner:
+     * ```hx
+     * data.patternsEnd - data.patternsStart; // 2 for case .Admin, .Owner:
      * ```
      *
      * @since 1.0.0
      */
 
-    patterns_start: u32,
+    patternsStart: u32,
 
     /**
      * The end of the range of pattern nodes.
      *
      * @example
-     * ```ts
-     * data.patterns_end; // patterns_start + 1 for case 0:
+     * ```hx
+     * data.patternsEnd; // patternsStart + 1 for case 0:
      * ```
      *
      * @since 1.0.0
      */
 
-    patterns_end: u32,
+    patternsEnd: u32,
 
     /**
      * The guard expression, or 0.
      *
      * @example
-     * ```ts
+     * ```hx
      * data.guard; // the active of case .Admin if (active):
      * ```
      *
@@ -645,7 +677,7 @@ export extern "C" struct HxCaseData {
      * The body, which is a block of statements or the value of an expression switch.
      *
      * @example
-     * ```ts
+     * ```hx
      * data.body; // the grant() of case .Admin: grant();
      * ```
      *
@@ -658,10 +690,14 @@ export extern "C" struct HxCaseData {
 /**
  * The record of an `If` node.
  *
+ * @remarks
+ * The parser stores it in the extra array and puts its index in the `a` slot of the node.
+ * A missing `else` leaves 0 in `elseBranch`, and an `else if` chain nests another `If` node there.
+ *
  * @example
- * ```ts
+ * ```hx
  * // if (const user = find(id)) greet(user); else signUp();
- * // { condition: <find(id)>, capture_token: <user>, then_branch, else_branch }
+ * // { condition: <find(id)>, captureToken: <user>, thenBranch, elseBranch }
  * ```
  *
  * @since 1.0.0
@@ -672,7 +708,7 @@ export extern "C" struct HxIfData {
      * The condition.
      *
      * @example
-     * ```ts
+     * ```hx
      * data.condition; // the find(id) of the example above
      * ```
      *
@@ -682,52 +718,56 @@ export extern "C" struct HxIfData {
     condition: u32,
 
     /**
-     * The name that captures the value of an optional condition, or {@link NO_TOKEN}.
+     * The name that captures the value of an optional condition, or {@link NoToken}.
      *
      * @example
-     * ```ts
-     * tokenText(&ast, data.capture_token); // 'user'
+     * ```hx
+     * tokenText(&ast, data.captureToken); // 'user'
      * ```
      *
      * @since 1.0.0
      */
 
-    capture_token: u32,
+    captureToken: u32,
 
     /**
      * The statement that runs when the condition holds.
      *
      * @example
-     * ```ts
-     * data.then_branch; // the greet(user) statement
+     * ```hx
+     * data.thenBranch; // the greet(user) statement
      * ```
      *
      * @since 1.0.0
      */
 
-    then_branch: u32,
+    thenBranch: u32,
 
     /**
      * The statement that runs otherwise, or 0 without an `else`.
      *
      * @example
-     * ```ts
-     * data.else_branch; // 0 for if (ready) start();
+     * ```hx
+     * data.elseBranch; // 0 for if (ready) start();
      * ```
      *
      * @since 1.0.0
      */
 
-    else_branch: u32,
+    elseBranch: u32,
 }
 
 /**
  * The record of a `While` node.
  *
+ * @remarks
+ * The parser stores it in the extra array and puts its index in the `a` slot of the node.
+ * The label and the capture are optional, and each one is {@link NoToken} when absent.
+ *
  * @example
- * ```ts
+ * ```hx
  * // outer: while (const line = next()) print(line);
- * // { condition: <next()>, capture_token: <line>, body, label_token: <outer> }
+ * // { condition: <next()>, captureToken: <line>, body, labelToken: <outer> }
  * ```
  *
  * @since 1.0.0
@@ -738,7 +778,7 @@ export extern "C" struct HxWhileData {
      * The condition.
      *
      * @example
-     * ```ts
+     * ```hx
      * data.condition; // the next() of the example above
      * ```
      *
@@ -748,23 +788,23 @@ export extern "C" struct HxWhileData {
     condition: u32,
 
     /**
-     * The name that captures the value of an optional condition, or {@link NO_TOKEN}.
+     * The name that captures the value of an optional condition, or {@link NoToken}.
      *
      * @example
-     * ```ts
-     * tokenText(&ast, data.capture_token); // 'line'
+     * ```hx
+     * tokenText(&ast, data.captureToken); // 'line'
      * ```
      *
      * @since 1.0.0
      */
 
-    capture_token: u32,
+    captureToken: u32,
 
     /**
      * The statement that repeats.
      *
      * @example
-     * ```ts
+     * ```hx
      * data.body; // the print(line) statement
      * ```
      *
@@ -774,26 +814,30 @@ export extern "C" struct HxWhileData {
     body: u32,
 
     /**
-     * The label of the loop, or {@link NO_TOKEN}.
+     * The label of the loop, or {@link NoToken}.
      *
      * @example
-     * ```ts
-     * tokenText(&ast, data.label_token); // 'outer'
+     * ```hx
+     * tokenText(&ast, data.labelToken); // 'outer'
      * ```
      *
      * @since 1.0.0
      */
 
-    label_token: u32,
+    labelToken: u32,
 }
 
 /**
  * The record of a C-style `For` node.
  *
+ * @remarks
+ * The parser stores it in the extra array and puts its index in the `a` slot of the node.
+ * Any of the three clauses may be left out, which leaves 0 in its field.
+ *
  * @example
- * ```ts
+ * ```hx
  * // for (let i = 0; i < n; i++) step(i);
- * // { init: <let i = 0>, condition: <i < n>, step: <i++>, body, label_token: NO_TOKEN }
+ * // { init: <let i = 0>, condition: <i < n>, step: <i++>, body, labelToken: NoToken }
  * ```
  *
  * @since 1.0.0
@@ -804,7 +848,7 @@ export extern "C" struct HxForData {
      * The statement that runs once before the loop, or 0.
      *
      * @example
-     * ```ts
+     * ```hx
      * data.init; // the let i = 0
      * ```
      *
@@ -817,7 +861,7 @@ export extern "C" struct HxForData {
      * The condition checked before each pass, or 0 for a loop that runs until a `break`.
      *
      * @example
-     * ```ts
+     * ```hx
      * data.condition; // 0 for for (;;) {}
      * ```
      *
@@ -830,7 +874,7 @@ export extern "C" struct HxForData {
      * The statement that runs after each pass, or 0.
      *
      * @example
-     * ```ts
+     * ```hx
      * data.step; // the i++
      * ```
      *
@@ -843,7 +887,7 @@ export extern "C" struct HxForData {
      * The statement that repeats.
      *
      * @example
-     * ```ts
+     * ```hx
      * data.body; // the step(i) statement
      * ```
      *
@@ -853,26 +897,30 @@ export extern "C" struct HxForData {
     body: u32,
 
     /**
-     * The label of the loop, or {@link NO_TOKEN}.
+     * The label of the loop, or {@link NoToken}.
      *
      * @example
-     * ```ts
-     * data.label_token; // NO_TOKEN without a label
+     * ```hx
+     * data.labelToken; // NoToken without a label
      * ```
      *
      * @since 1.0.0
      */
 
-    label_token: u32,
+    labelToken: u32,
 }
 
 /**
  * The record of a `ForOf` node.
  *
+ * @remarks
+ * The parser stores it in the extra array and puts its index in the `a` slot of the node.
+ * The index name and the label are optional, and each one is {@link NoToken} when absent.
+ *
  * @example
- * ```ts
+ * ```hx
  * // for (const item, i of items) use(item);
- * // { item_token: <item>, index_token: <i>, iterable: <items>, body, label_token: NO_TOKEN }
+ * // { itemToken: <item>, indexToken: <i>, iterable: <items>, body, labelToken: NoToken }
  * ```
  *
  * @since 1.0.0
@@ -883,33 +931,33 @@ export extern "C" struct HxForOfData {
      * The name of each item.
      *
      * @example
-     * ```ts
-     * tokenText(&ast, data.item_token); // 'item'
+     * ```hx
+     * tokenText(&ast, data.itemToken); // 'item'
      * ```
      *
      * @since 1.0.0
      */
 
-    item_token: u32,
+    itemToken: u32,
 
     /**
-     * The name of the index of each item, or {@link NO_TOKEN}.
+     * The name of the index of each item, or {@link NoToken}.
      *
      * @example
-     * ```ts
-     * tokenText(&ast, data.index_token); // 'i'
+     * ```hx
+     * tokenText(&ast, data.indexToken); // 'i'
      * ```
      *
      * @since 1.0.0
      */
 
-    index_token: u32,
+    indexToken: u32,
 
     /**
      * The collection or `Range` node that the loop walks.
      *
      * @example
-     * ```ts
+     * ```hx
      * node(&ast, data.iterable).kind; // NodeKind.Range for 0..n
      * ```
      *
@@ -922,7 +970,7 @@ export extern "C" struct HxForOfData {
      * The statement that repeats.
      *
      * @example
-     * ```ts
+     * ```hx
      * data.body; // the use(item) statement
      * ```
      *
@@ -932,17 +980,17 @@ export extern "C" struct HxForOfData {
     body: u32,
 
     /**
-     * The label of the loop, or {@link NO_TOKEN}.
+     * The label of the loop, or {@link NoToken}.
      *
      * @example
-     * ```ts
-     * data.label_token; // NO_TOKEN without a label
+     * ```hx
+     * data.labelToken; // NoToken without a label
      * ```
      *
      * @since 1.0.0
      */
 
-    label_token: u32,
+    labelToken: u32,
 }
 
 /**
@@ -955,15 +1003,15 @@ export extern "C" struct HxForOfData {
  * Nodes point back into the tokens and the source, so both must outlive the tree.
  *
  * @example
- * ```ts
+ * ```hx
  * let ast: HxAst = undefined;
- * hx_ast_init(&ast, &src, &tokens);
+ * hxAstInit(&ast, &src, &tokens);
  * // the parser fills it, then ast.root is the File node
- * hx_ast_free(&ast);
+ * hxAstFree(&ast);
  * ```
  *
  * @see HxNode
- * @see hx_ast_init
+ * @see hxAstInit
  *
  * @since 1.0.0
  */
@@ -973,7 +1021,7 @@ export extern "C" struct HxAst {
      * The source that the tokens point into.
      *
      * @example
-     * ```ts
+     * ```hx
      * ast.src.len; // the length of the program text
      * ```
      *
@@ -986,7 +1034,7 @@ export extern "C" struct HxAst {
      * The tokens that the nodes point at.
      *
      * @example
-     * ```ts
+     * ```hx
      * ast.tokens.len; // the number of tokens
      * ```
      *
@@ -999,7 +1047,7 @@ export extern "C" struct HxAst {
      * The nodes, where node 0 is the reserved empty node.
      *
      * @example
-     * ```ts
+     * ```hx
      * node(&ast, ast.root).kind; // NodeKind.File
      * ```
      *
@@ -1012,33 +1060,33 @@ export extern "C" struct HxAst {
      * The number of nodes, the reserved one included.
      *
      * @example
-     * ```ts
-     * ast.nodes_len; // 1 for a new tree
+     * ```hx
+     * ast.nodesLen; // 1 for a new tree
      * ```
      *
      * @since 1.0.0
      */
 
-    nodes_len: u32,
+    nodesLen: u32,
 
     /**
      * The capacity of the node array.
      *
      * @example
-     * ```ts
-     * ast.nodes_cap; // about half the token count
+     * ```hx
+     * ast.nodesCap; // about half the token count
      * ```
      *
      * @since 1.0.0
      */
 
-    nodes_cap: u32,
+    nodesCap: u32,
 
     /**
      * The child lists and records that do not fit in a node.
      *
      * @example
-     * ```ts
+     * ```hx
      * extraAt(&ast, 4); // a node index or a record word
      * ```
      *
@@ -1051,27 +1099,27 @@ export extern "C" struct HxAst {
      * The number of words in the extra array.
      *
      * @example
-     * ```ts
-     * ast.extra_len; // 0 for a new tree
+     * ```hx
+     * ast.extraLen; // 0 for a new tree
      * ```
      *
      * @since 1.0.0
      */
 
-    extra_len: u32,
+    extraLen: u32,
 
     /**
      * The capacity of the extra array in words.
      *
      * @example
-     * ```ts
-     * ast.extra_cap; // about a quarter of the token count
+     * ```hx
+     * ast.extraCap; // about a quarter of the token count
      * ```
      *
      * @since 1.0.0
      */
 
-    extra_cap: u32,
+    extraCap: u32,
 
     /**
      * The index of the `File` node of the entry file, or 0 before parsing.
@@ -1080,7 +1128,7 @@ export extern "C" struct HxAst {
      * A program of several files has one `File` node per file, and this one belongs to the file it started from.
      *
      * @example
-     * ```ts
+     * ```hx
      * node(&ast, ast.root).kind; // NodeKind.File
      * ```
      *

@@ -4,12 +4,14 @@
 
 import { readFile, FsError } from "std/fs";
 import { cAllocator, free as freeItems } from "std";
-import { EMPTY_SOURCE, NO_FILE } from "@constants/source.constant";
-import { hx_realloc, hx_strndup, free } from "@components/memory.component";
+import { EmptySource, NoFile } from "@constants/source.constant";
+import { hxRealloc, hxStrndup, free } from "@components/memory.component";
 import { HxSource, HxSourceFile, HxLineCol } from "@models/structs/source-model.struct";
 
 /**
  * The C library function that measures a NUL-terminated path.
+ *
+ * @since 1.0.0
  */
 
 extern "C" function strlen(text: readonly u8[*]): usize;
@@ -18,15 +20,15 @@ extern "C" function strlen(text: readonly u8[*]): usize;
  * Returns the file array of a source.
  *
  * @param src - The source whose files to read
- * @returns The files, indexed from 0 up to `file_count`
+ * @returns The files, indexed from 0 up to `fileCount`
  *
  * @remarks
  * The source stores the array as bytes for its C layout, and this gives it back its type.
  * Only call it once the source holds at least one file.
  *
  * @example
- * ```ts
- * files(&src)[0]; // { path: 'main.hx', start: 0, end: 10, first_line: 0 }
+ * ```hx
+ * files(&src)[0]; // { path: 'main.hx', start: 0, end: 10, firstLine: 0 }
  * ```
  *
  * @since 1.0.0
@@ -43,19 +45,25 @@ export function files(src: readonly *HxSource): HxSourceFile[*] {
  *
  * @param src - The source whose line table to grow
  * @param offset - The offset of the first byte of the line
+ *
+ * @remarks
+ * The table starts at 256 entries and doubles whenever it is full.
+ * It does not keep the offsets sorted, so the callers append lines in the order they appear.
+ *
+ * @since 1.0.0
  */
 
 function addLine(src: *HxSource, offset: u32): void {
-    if (src.line_count == src.line_cap) {
-        src.line_cap = src.line_cap != 0 ? src.line_cap * 2 : 256;
+    if (src.lineCount == src.lineCap) {
+        src.lineCap = src.lineCap != 0 ? src.lineCap * 2 : 256;
         unsafe {
-            src.line_starts = @ptrCast(u32[*], hx_realloc(@ptrCast(?u8[*], src.line_starts), (src.line_cap as usize) * 4));
+            src.lineStarts = @ptrCast(u32[*], hxRealloc(@ptrCast(?u8[*], src.lineStarts), (src.lineCap as usize) * 4));
         }
     }
     unsafe {
-        src.line_starts![src.line_count] = offset;
+        src.lineStarts![src.lineCount] = offset;
     }
-    src.line_count += 1;
+    src.lineCount += 1;
 }
 
 /**
@@ -68,6 +76,8 @@ function addLine(src: *HxSource, offset: u32): void {
  *
  * @remarks
  * Every file after the first starts after a newline, so each file starts on a line of its own.
+ *
+ * @since 1.0.0
  */
 
 function appendFile(src: *HxSource, path: readonly u8[*], bytes: readonly u8[]): u32 {
@@ -77,7 +87,7 @@ function appendFile(src: *HxSource, path: readonly u8[*], bytes: readonly u8[]):
         let cap: usize = src.cap != 0 ? src.cap as usize : 4096;
         while (cap < needed) cap *= 2;
         unsafe {
-            src.text = hx_realloc(src.text, cap);
+            src.text = hxRealloc(src.text, cap);
         }
         src.cap = @truncate(u32, cap);
     }
@@ -88,12 +98,12 @@ function appendFile(src: *HxSource, path: readonly u8[*], bytes: readonly u8[]):
         src.len = start + @truncate(u32, bytes.len);
         text[src.len] = 0;
 
-        if (src.file_count == src.file_cap) {
-            src.file_cap = src.file_cap != 0 ? src.file_cap * 2 : 8;
-            src.files = hx_realloc(src.files, (src.file_cap as usize) * @sizeOf(HxSourceFile));
+        if (src.fileCount == src.fileCap) {
+            src.fileCap = src.fileCap != 0 ? src.fileCap * 2 : 8;
+            src.files = hxRealloc(src.files, (src.fileCap as usize) * @sizeOf(HxSourceFile));
         }
-        files(src)[src.file_count] = HxSourceFile {
-            path: hx_strndup(path, strlen(path)), start, end: src.len, first_line: src.line_count,
+        files(src)[src.fileCount] = HxSourceFile {
+            path: hxStrndup(path, strlen(path)), start, end: src.len, firstLine: src.lineCount,
         };
     }
 
@@ -103,8 +113,8 @@ function appendFile(src: *HxSource, path: readonly u8[*], bytes: readonly u8[]):
             if (src.text![i] == '\n') addLine(src, i + 1);
         }
     }
-    const index = src.file_count;
-    src.file_count += 1;
+    const index = src.fileCount;
+    src.fileCount += 1;
     return index;
 }
 
@@ -113,6 +123,12 @@ function appendFile(src: *HxSource, path: readonly u8[*], bytes: readonly u8[]):
  *
  * @param e - The error that reading the file raised
  * @returns The static message that the driver prints after `cannot read 'path':`
+ *
+ * @remarks
+ * The messages match what `strerror` prints for the same causes, so the output reads like other command-line tools.
+ * Any error outside the four known ones falls back to a generic message.
+ *
+ * @since 1.0.0
  */
 
 function describe(e: Error): readonly u8[*] {
@@ -129,7 +145,7 @@ function describe(e: Error): readonly u8[*] {
  * @param src - The source to append to
  * @param path - The NUL-terminated path of the file
  * @param error - The variable that receives a static message when the file cannot be added
- * @returns The index of the new file, or {@link NO_FILE} on failure
+ * @returns The index of the new file, or {@link NoFile} on failure
  *
  * @remarks
  * A file of 2 GiB or more is refused,
@@ -137,19 +153,19 @@ function describe(e: Error): readonly u8[*] {
  * On failure the source is left as it was.
  *
  * @example
- * ```ts
+ * ```hx
  * let error: readonly u8[*] = "";
- * hx_source_add_file(&src, "src/main.hx", &error); // 0
- * hx_source_add_file(&src, "missing.hx", &error);  // NO_FILE, error: 'No such file or directory'
+ * hxSourceAddFile(&src, "src/main.hx", &error); // 0
+ * hxSourceAddFile(&src, "missing.hx", &error);  // NoFile, error: 'No such file or directory'
  * ```
  *
  * @see addText
- * @see hx_source_load
+ * @see hxSourceLoad
  *
  * @since 1.0.0
  */
 
-export extern "C" function hx_source_add_file(src: *HxSource, path: readonly u8[*], error: *readonly u8[*]): u32 {
+export extern "C" function hxSourceAddFile(src: *HxSource, path: readonly u8[*], error: *readonly u8[*]): u32 {
     const a = cAllocator();
     let name: string = "";
     unsafe {
@@ -157,16 +173,16 @@ export extern "C" function hx_source_add_file(src: *HxSource, path: readonly u8[
     }
     const bytes = readFile(a, name) catch (e) {
         *error = describe(e);
-        return NO_FILE;
+        return NoFile;
     };
     defer freeItems(a, bytes);
-    if (bytes.len >= 0x7FFF_FFFF) {
+    if (bytes.len >= 0x7FFFFFFF) {
         *error = "file is too large";
-        return NO_FILE;
+        return NoFile;
     }
     if ((src.len as u64) + (bytes.len as u64) + 2 >= 0xFFFF_FFFF) {
         *error = "the program's source is larger than 4 GiB";
-        return NO_FILE;
+        return NoFile;
     }
     return appendFile(src, path, bytes);
 }
@@ -183,11 +199,11 @@ export extern "C" function hx_source_add_file(src: *HxSource, path: readonly u8[
  * The language server uses it for the unsaved buffer of an editor, which has no current copy on disk.
  *
  * @example
- * ```ts
+ * ```hx
  * addText(&src, "main.hx", "let a = 1;"); // 0
  * ```
  *
- * @see hx_source_add_file
+ * @see hxSourceAddFile
  * @since 1.0.0
  */
 
@@ -203,20 +219,25 @@ export function addText(src: *HxSource, path: readonly u8[*], text: string): u32
  * @param error - The variable that receives a static message when the file cannot be read
  * @returns `true` when the file was loaded
  *
+ * @remarks
+ * Resets the source before it reads, so it starts a new program rather than adding to one.
+ * Use {@link hxSourceAddFile} for every file after the first.
+ * When the file cannot be read, `error` holds the reason and the source stays empty.
+ *
  * @example
- * ```ts
+ * ```hx
  * let src: HxSource = undefined;
  * let error: readonly u8[*] = "";
- * hx_source_load(&src, "src/main.hx", &error); // true
+ * hxSourceLoad(&src, "src/main.hx", &error); // true
  * ```
  *
- * @see hx_source_add_file
+ * @see hxSourceAddFile
  * @since 1.0.0
  */
 
-export extern "C" function hx_source_load(src: *HxSource, path: readonly u8[*], error: *readonly u8[*]): bool {
-    *src = EMPTY_SOURCE;
-    return hx_source_add_file(src, path, error) != NO_FILE;
+export extern "C" function hxSourceLoad(src: *HxSource, path: readonly u8[*], error: *readonly u8[*]): bool {
+    *src = EmptySource;
+    return hxSourceAddFile(src, path, error) != NoFile;
 }
 
 /**
@@ -231,9 +252,9 @@ export extern "C" function hx_source_load(src: *HxSource, path: readonly u8[*], 
  * Tests use it to compile a snippet without a file on disk.
  *
  * @example
- * ```ts
+ * ```hx
  * let src: HxSource = undefined;
- * hx_source_from_string(&src, "main.hx", "let a = 1;", 10);
+ * hxSourceFromString(&src, "main.hx", "let a = 1;", 10);
  * src.len; // 10
  * ```
  *
@@ -241,8 +262,8 @@ export extern "C" function hx_source_load(src: *HxSource, path: readonly u8[*], 
  * @since 1.0.0
  */
 
-export extern "C" function hx_source_from_string(src: *HxSource, path: readonly u8[*], text: readonly u8[*], len: usize): void {
-    *src = EMPTY_SOURCE;
+export extern "C" function hxSourceFromString(src: *HxSource, path: readonly u8[*], text: readonly u8[*], len: usize): void {
+    *src = EmptySource;
     unsafe {
         void appendFile(src, path, len > 0 ? text[0..len] : "");
     }
@@ -257,22 +278,22 @@ export extern "C" function hx_source_from_string(src: *HxSource, path: readonly 
  * The source is left empty, so releasing it twice is harmless.
  *
  * @example
- * ```ts
- * hx_source_free(&src);
- * src.file_count; // 0
+ * ```hx
+ * hxSourceFree(&src);
+ * src.fileCount; // 0
  * ```
  *
  * @since 1.0.0
  */
 
-export extern "C" function hx_source_free(src: *HxSource): void {
+export extern "C" function hxSourceFree(src: *HxSource): void {
     unsafe {
-        for (const i of 0..src.file_count) free(files(src)[i].path);
+        for (const i of 0..src.fileCount) free(files(src)[i].path);
         free(src.files);
         free(src.text);
-        free(@ptrCast(?u8[*], src.line_starts));
+        free(@ptrCast(?u8[*], src.lineStarts));
     }
-    *src = EMPTY_SOURCE;
+    *src = EmptySource;
 }
 
 /**
@@ -281,13 +302,19 @@ export extern "C" function hx_source_free(src: *HxSource): void {
  * @param src - The source to search
  * @param offset - The offset to locate
  * @returns The index of the last line that starts at or before the offset
+ *
+ * @remarks
+ * An offset in the middle of a line resolves to that line, and an offset past the end resolves to the last line.
+ * It assumes the table holds at least one line, which every loaded file guarantees.
+ *
+ * @since 1.0.0
  */
 
 function lineIndex(src: readonly *HxSource, offset: u32): u32 {
     let lo: u32 = 0;
-    let hi = src.line_count;
+    let hi = src.lineCount;
     unsafe {
-        const starts = src.line_starts!;
+        const starts = src.lineStarts!;
         while (hi - lo > 1) {
             const mid = lo + (hi - lo) / 2;
             if (starts[mid] <= offset) lo = mid;
@@ -303,11 +330,17 @@ function lineIndex(src: readonly *HxSource, offset: u32): u32 {
  * @param src - The source to search
  * @param offset - The offset to locate
  * @returns The index of the last file that starts at or before the offset
+ *
+ * @remarks
+ * The offset of the newline that separates two files resolves to the earlier file.
+ * It assumes the source holds at least one file.
+ *
+ * @since 1.0.0
  */
 
 function fileIndex(src: readonly *HxSource, offset: u32): u32 {
     let lo: u32 = 0;
-    let hi = src.file_count;
+    let hi = src.fileCount;
     unsafe {
         while (hi - lo > 1) {
             const mid = lo + (hi - lo) / 2;
@@ -330,26 +363,26 @@ function fileIndex(src: readonly *HxSource, offset: u32): u32 {
  * Both lookups are binary searches, so the cost grows with the logarithm of the size of the program.
  *
  * @example
- * ```ts
+ * ```hx
  * // main.hx: let a = 1;\nlet é = 2;
- * hx_source_line_col(&src, 4);  // { file: 0, line: 1, col: 5, global_line: 0 }
- * hx_source_line_col(&src, 17); // { file: 0, line: 2, col: 6, global_line: 1 }, past the é
+ * hxSourceLineCol(&src, 4);  // { file: 0, line: 1, col: 5, globalLine: 0 }
+ * hxSourceLineCol(&src, 17); // { file: 0, line: 2, col: 6, globalLine: 1 }, past the é
  * ```
  *
- * @see hx_source_line
+ * @see hxSourceLine
  * @since 1.0.0
  */
 
-export extern "C" function hx_source_line_col(src: readonly *HxSource, at: u32): HxLineCol {
+export extern "C" function hxSourceLineCol(src: readonly *HxSource, at: u32): HxLineCol {
     const offset = at > src.len ? src.len : at;
     const index = lineIndex(src, offset);
     const file = fileIndex(src, offset);
     let col: u32 = 1;
     unsafe {
-        for (const i of src.line_starts![index]..offset) {
+        for (const i of src.lineStarts![index]..offset) {
             if ((src.text![i] & 0xC0) != 0x80) col += 1;
         }
-        return HxLineCol { file, line: index - files(src)[file].first_line + 1, col, global_line: index };
+        return HxLineCol { file, line: index - files(src)[file].firstLine + 1, col, globalLine: index };
     }
 }
 
@@ -357,7 +390,7 @@ export extern "C" function hx_source_line_col(src: readonly *HxSource, at: u32):
  * Returns where a line starts and how long it is, without its line break.
  *
  * @param src - The source that holds the line
- * @param global_line - The index of the line in the line table of the whole program
+ * @param globalLine - The index of the line in the line table of the whole program
  * @param len - The variable that receives the length of the line in bytes
  * @returns The offset of the first byte of the line
  *
@@ -365,22 +398,22 @@ export extern "C" function hx_source_line_col(src: readonly *HxSource, at: u32):
  * Both a `\n` and a `\r\n` ending are left out of the length.
  *
  * @example
- * ```ts
+ * ```hx
  * // a\r\nbc
  * let len: u32 = 0;
- * hx_source_line(&src, 0, &len); // 0, len: 1
- * hx_source_line(&src, 1, &len); // 3, len: 2
+ * hxSourceLine(&src, 0, &len); // 0, len: 1
+ * hxSourceLine(&src, 1, &len); // 3, len: 2
  * ```
  *
- * @see hx_source_line_col
+ * @see hxSourceLineCol
  * @since 1.0.0
  */
 
-export extern "C" function hx_source_line(src: readonly *HxSource, global_line: u32, len: *u32): u32 {
+export extern "C" function hxSourceLine(src: readonly *HxSource, globalLine: u32, len: *u32): u32 {
     unsafe {
-        const starts = src.line_starts!;
-        const start = starts[global_line];
-        let end = global_line + 1 < src.line_count ? starts[global_line + 1] : src.len;
+        const starts = src.lineStarts!;
+        const start = starts[globalLine];
+        let end = globalLine + 1 < src.lineCount ? starts[globalLine + 1] : src.len;
         const text = src.text!;
         if (end > start && text[end - 1] == '\n') end -= 1;
         if (end > start && text[end - 1] == '\r') end -= 1;
