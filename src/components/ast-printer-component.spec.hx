@@ -3,20 +3,22 @@
  */
 
 import { free } from "std/c";
-import { hx_ast_free } from "@models/ast.model";
+import { hxAstFree } from "@models/ast.model";
+import { hxParse } from "@modules/parser/parser.module";
 import { HxAst } from "@models/structs/ast-model.struct";
-import { hx_parse } from "@modules/parser/parser.module";
-import { hx_diag_list_free } from "@models/diagnostic.model";
+import { hxDiagListFree } from "@models/diagnostic.model";
 import { HxSource } from "@models/structs/source-model.struct";
+import { hxAstPrint } from "@components/ast-printer.component";
 import { HxArena } from "@services/structs/arena-service.struct";
-import { hx_ast_print } from "@components/ast-printer.component";
+import { hxLex, hxTokensFree } from "@modules/lexer/lexer.module";
 import { HxDiagList } from "@models/structs/diagnostic-model.struct";
-import { hx_lex, hx_tokens_free } from "@modules/lexer/lexer.module";
 import { HxTokens } from "@modules/lexer/structs/lexer-module.struct";
-import { hx_source_from_string, hx_source_free } from "@models/source.model";
+import { hxSourceFromString, hxSourceFree } from "@models/source.model";
 
 /**
  * The C library functions that capture the printed tree in memory.
+ *
+ * @since 1.0.0
  */
 
 extern "C" function open_memstream(buf: *?u8[*], len: *usize): ?u8[*];
@@ -31,7 +33,12 @@ let streamBuffer: ?u8[*] = null;
 let streamSize: usize = 0;
 
 /**
- * A source, its tokens, its tree, and its diagnostics after one parse.
+ * The source, the tokens, the tree, and the diagnostics of one parse.
+ *
+ * @remarks
+ * The tree points into the source and the tokens, so the four live together and {@link release} frees them together.
+ *
+ * @since 1.0.0
  */
 
 struct Parsed {
@@ -42,29 +49,55 @@ struct Parsed {
 }
 
 /**
- * Lexes and parses a text into a state that must stay where it is, since the tree points at its source and tokens.
+ * Lexes and parses a text into a parse state.
+ *
+ * @param p - The state that receives the source, the tokens, the tree, and the diagnostics
+ * @param text - The source text, which the source copies under the name `test.hx`
+ *
+ * @remarks
+ * The tree points at the source and the tokens of the state, so the state must not move until {@link release}.
+ * Diagnostics go into the state and do not stop the parse.
+ *
+ * @since 1.0.0
  */
 
 function parse(p: *Parsed, text: string): void {
-    p.diags = HxDiagList { items: null, items_len: 0, items_cap: 0, arena: HxArena { head: null }, error_count: 0 };
-    hx_source_from_string(&p.src, "test.hx", text.ptr, text.len);
-    void hx_lex(&p.src, &p.tokens, &p.diags);
-    void hx_parse(&p.src, &p.tokens, &p.ast, &p.diags);
+    p.diags = HxDiagList { items: null, itemsLen: 0, itemsCap: 0, arena: HxArena { head: null }, errorCount: 0 };
+    hxSourceFromString(&p.src, "test.hx", text.ptr, text.len);
+    void hxLex(&p.src, &p.tokens, &p.diags);
+    void hxParse(&p.src, &p.tokens, &p.ast, &p.diags);
 }
 
 /**
  * Releases everything that one parse allocated.
+ *
+ * @param p - The state that {@link parse} filled
+ *
+ * @remarks
+ * It frees the tree before the tokens and the source that the tree points into.
+ *
+ * @since 1.0.0
  */
 
 function release(p: *Parsed): void {
-    hx_ast_free(&p.ast);
-    hx_tokens_free(&p.tokens);
-    hx_diag_list_free(&p.diags);
-    hx_source_free(&p.src);
+    hxAstFree(&p.ast);
+    hxTokensFree(&p.tokens);
+    hxDiagListFree(&p.diags);
+    hxSourceFree(&p.src);
 }
 
 /**
- * The whole tree of a source as the printer writes it.
+ * Returns the whole tree of a source as the printer writes it.
+ *
+ * @param text - The source text to parse
+ * @param pretty - Whether to print in pretty mode with one node per indented line
+ * @returns The printed tree, cut at 2048 bytes
+ *
+ * @remarks
+ * It prints into an in-memory stream and copies the result into the shared `captured` buffer,
+ * so the next call overwrites the text that this one returned.
+ *
+ * @since 1.0.0
  */
 
 function printed(text: string, pretty: bool): string {
@@ -72,7 +105,7 @@ function printed(text: string, pretty: bool): string {
     parse(&p, text);
     defer release(&p);
     const file = open_memstream(&streamBuffer, &streamSize);
-    hx_ast_print(&p.ast, p.ast.root, file, pretty);
+    hxAstPrint(&p.ast, p.ast.root, file, pretty);
     void fclose(file);
     const n = streamSize < captured.len ? streamSize : captured.len;
     unsafe {
@@ -83,7 +116,7 @@ function printed(text: string, pretty: bool): string {
     return captured[0..n];
 }
 
-describe("hx_ast_print") {
+describe("hxAstPrint") {
     test("should write a whole tree on one line and end it with a newline") {
         expect(printed("const x = 1 + 2 * 3;", false)).toBe("(file (const x _ (+ 1 (* 2 3))))\n");
     }

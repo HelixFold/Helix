@@ -2,13 +2,15 @@
  * Imports
  */
 
-import { JSON_ARRAY, JSON_OBJECT } from "@constants/json.constant";
-import { hx_alloc, hx_realloc, free } from "@components/memory.component";
+import { JsonNumber, JsonString } from "@constants/json.constant";
+import { hxAlloc, hxRealloc, free } from "@components/memory.component";
 import { HxJson, Reader } from "@components/structs/json-component.struct";
-import { MAX_JSON_DEPTH, EMPTY_JSON, JSON_NULL, JSON_BOOL, JSON_NUMBER, JSON_STRING } from "@constants/json.constant";
+import { JsonArray, JsonObject, MaxJsonDepth, EmptyJson, JsonNull, JsonBool } from "@constants/json.constant";
 
 /**
  * The C library functions that the reader leans on.
+ *
+ * @since 1.0.0
  */
 
 extern "C" function strlen(text: readonly u8[*]): usize;
@@ -24,6 +26,8 @@ extern "C" function strtod(text: readonly u8[*], end: *?u8[*]): f64;
  *
  * @remarks
  * A later failure leaves the first message and offset in place.
+ *
+ * @since 1.0.0
  */
 
 function fail(r: *Reader, offset: usize, message: string): bool {
@@ -31,7 +35,7 @@ function fail(r: *Reader, offset: usize, message: string): bool {
         const n = message.len < r.error.len ? message.len : r.error.len - 1;
         for (const i of 0..n) r.error[i] = message[i];
         r.error[n] = 0;
-        *r.error_offset = @truncate(u32, offset);
+        *r.errorOffset = @truncate(u32, offset);
         r.failed = true;
     }
     return false;
@@ -43,6 +47,11 @@ function fail(r: *Reader, offset: usize, message: string): bool {
  * @param r - The reader state
  * @param offset - How far past the current position to look
  * @returns The byte there, or 0 past the end of the text
+ *
+ * @remarks
+ * Returning 0 past the end lets callers look ahead without checking the length first.
+ *
+ * @since 1.0.0
  */
 
 function at(r: *Reader, offset: usize): u8 {
@@ -54,6 +63,12 @@ function at(r: *Reader, offset: usize): u8 {
  *
  * @param r - The reader state
  * @returns `false` after an unclosed block comment, otherwise `true`
+ *
+ * @remarks
+ * Comments are what make the text JSONC rather than JSON.
+ * It stops at the first other byte and leaves the position there.
+ *
+ * @since 1.0.0
  */
 
 function skip(r: *Reader): bool {
@@ -81,6 +96,11 @@ function skip(r: *Reader): bool {
  *
  * @param c - The character to read
  * @returns The value from 0 to 15, or `null` when the character is not a hex digit
+ *
+ * @remarks
+ * It accepts both lowercase and uppercase letters.
+ *
+ * @since 1.0.0
  */
 
 function hexDigit(c: u8): ?u32 {
@@ -97,6 +117,12 @@ function hexDigit(c: u8): ?u32 {
  * @param out - The buffer to write into
  * @param n - The offset in the buffer to write at
  * @returns The offset just past the bytes written
+ *
+ * @remarks
+ * It writes from one to four bytes and trusts the caller to leave room for them.
+ * It does not reject a lone surrogate, which comes out as a three-byte sequence.
+ *
+ * @since 1.0.0
  */
 
 function encodeUtf8(cp: u32, out: u8[], n: usize): usize {
@@ -127,6 +153,11 @@ function encodeUtf8(cp: u32, out: u8[], n: usize): usize {
  *
  * @param r - The reader state, positioned at the first digit
  * @returns The value of the digits, or `null` after a failure
+ *
+ * @remarks
+ * It moves past the digits only on success, so a failure points at the first digit.
+ *
+ * @since 1.0.0
  */
 
 function readHex4(r: *Reader): ?u32 {
@@ -156,12 +187,14 @@ function readHex4(r: *Reader): ?u32 {
  * @remarks
  * A surrogate pair of `\u` escapes becomes one code point.
  * Decoding never makes a string longer, so one block the size of the rest of the text always fits.
+ *
+ * @since 1.0.0
  */
 
 function readString(r: *Reader): ?u8[*] {
     const open = r.pos;
     r.pos += 1;
-    const raw = hx_alloc(r.text.len - open + 1);
+    const raw = hxAlloc(r.text.len - open + 1);
     let out: u8[] = [];
     unsafe {
         out = raw[0..r.text.len - open + 1];
@@ -235,6 +268,11 @@ function readString(r: *Reader): ?u8[*] {
  * @param a - The first string
  * @param b - The second string
  * @returns `true` when both hold the same bytes
+ *
+ * @remarks
+ * The reader uses it to reject a member name that appears twice in one object and to look up a key by name.
+ *
+ * @since 1.0.0
  */
 
 function cEqual(a: readonly u8[*], b: readonly u8[*]): bool {
@@ -260,6 +298,8 @@ function cEqual(a: readonly u8[*], b: readonly u8[*]): bool {
  * A trailing comma before the closing bracket or brace is allowed.
  * A key that appears twice in one object is a failure.
  * Each key is counted as soon as it is read, so a failure further on still releases it.
+ *
+ * @since 1.0.0
  */
 
 function readList(r: *Reader, out: *HxJson, object: bool): bool {
@@ -277,19 +317,19 @@ function readList(r: *Reader, out: *HxJson, object: bool): bool {
         if (out.count == cap) {
             cap = cap != 0 ? cap * 2 : 4;
             unsafe {
-                out.items = @ptrCast(HxJson[*], hx_realloc(@ptrCast(?u8[*], out.items), (cap as usize) * @sizeOf(HxJson)));
+                out.items = @ptrCast(HxJson[*], hxRealloc(@ptrCast(?u8[*], out.items), (cap as usize) * @sizeOf(HxJson)));
                 if (object) {
-                    out.keys = @ptrCast((u8[*])[*], hx_realloc(@ptrCast(?u8[*], out.keys), (cap as usize) * @sizeOf(usize)));
-                    out.key_starts = @ptrCast(u32[*], hx_realloc(@ptrCast(?u8[*], out.key_starts), (cap as usize) * 4));
+                    out.keys = @ptrCast((u8[*])[*], hxRealloc(@ptrCast(?u8[*], out.keys), (cap as usize) * @sizeOf(usize)));
+                    out.keyStarts = @ptrCast(u32[*], hxRealloc(@ptrCast(?u8[*], out.keyStarts), (cap as usize) * 4));
                 }
             }
         }
         const i = out.count;
         unsafe {
-            out.items![i] = EMPTY_JSON;
+            out.items![i] = EmptyJson;
             if (object) {
                 if (r.text[r.pos] != '"') return fail(r, r.pos, "expected a member name in double quotes");
-                out.key_starts![i] = @truncate(u32, r.pos);
+                out.keyStarts![i] = @truncate(u32, r.pos);
                 const keyAt = r.pos;
                 const read = readString(r);
                 if (read == null) return false;
@@ -328,6 +368,11 @@ function readList(r: *Reader, out: *HxJson, object: bool): bool {
  * @param r - The reader state
  * @param word - The word to look for
  * @returns `true` when the next bytes spell the word
+ *
+ * @remarks
+ * It does not check what follows the word, so `trueish` matches `true` and the reader fails on the leftover bytes.
+ *
+ * @since 1.0.0
  */
 
 function startsWith(r: *Reader, word: string): bool {
@@ -347,27 +392,29 @@ function startsWith(r: *Reader, word: string): bool {
  *
  * @remarks
  * A number is read with `strtod`, which stops at the first byte that cannot continue a number.
- * Arrays and objects nested deeper than {@link MAX_JSON_DEPTH} are a failure.
+ * Arrays and objects nested deeper than {@link MaxJsonDepth} are a failure.
+ *
+ * @since 1.0.0
  */
 
 function readValue(r: *Reader, out: *HxJson): bool {
-    *out = EMPTY_JSON;
+    *out = EmptyJson;
     if (!skip(r)) return false;
     if (r.pos >= r.text.len) return fail(r, r.pos, "expected a value");
     r.depth += 1;
-    if (r.depth > MAX_JSON_DEPTH) return fail(r, r.pos, "nested more than 256 deep");
+    if (r.depth > MaxJsonDepth) return fail(r, r.pos, "nested more than 256 deep");
     out.start = @truncate(u32, r.pos);
     const c = r.text[r.pos];
     let ok = true;
     if (c == '{' || c == '[') {
-        out.kind = c == '{' ? JSON_OBJECT : JSON_ARRAY;
+        out.kind = c == '{' ? JsonObject : JsonArray;
         ok = readList(r, out, c == '{');
     } else if (c == '"') {
-        out.kind = JSON_STRING;
+        out.kind = JsonString;
         out.string = readString(r);
         ok = out.string != null;
     } else if (c == '-' || (c >= '0' && c <= '9')) {
-        out.kind = JSON_NUMBER;
+        out.kind = JsonNumber;
         const begin = &r.text[r.pos];
         let end: ?u8[*] = null;
         out.number = strtod(begin, &end);
@@ -375,14 +422,14 @@ function readValue(r: *Reader, out: *HxJson): bool {
         if (used == 0) ok = fail(r, r.pos, "expected a number");
         else r.pos += used;
     } else if (startsWith(r, "true")) {
-        out.kind = JSON_BOOL;
+        out.kind = JsonBool;
         out.boolean = true;
         r.pos += 4;
     } else if (startsWith(r, "false")) {
-        out.kind = JSON_BOOL;
+        out.kind = JsonBool;
         r.pos += 5;
     } else if (startsWith(r, "null")) {
-        out.kind = JSON_NULL;
+        out.kind = JsonNull;
         r.pos += 4;
     } else {
         ok = fail(r, r.pos, c == '\'' ? "strings use double quotes" : "expected a value");
@@ -399,8 +446,8 @@ function readValue(r: *Reader, out: *HxJson): bool {
  * @param len - The length of the text in bytes
  * @param out - The value that receives the parsed tree
  * @param error - The buffer that receives the NUL-terminated message of a failure
- * @param error_size - The size of the error buffer in bytes
- * @param error_offset - The variable that receives the offset that a failure points at
+ * @param errorSize - The size of the error buffer in bytes
+ * @param errorOffset - The variable that receives the offset that a failure points at
  * @returns `true` when the whole text is one valid value
  *
  * @remarks
@@ -408,36 +455,36 @@ function readValue(r: *Reader, out: *HxJson): bool {
  * and a comma may follow the last element of an array or the last member of an object.
  * Text after the value, other than whitespace and comments, is a failure.
  * On failure the output is an empty `null` value, and nothing needs releasing.
- * On success the caller owns the tree and releases it with {@link hx_json_free}.
+ * On success the caller owns the tree and releases it with {@link hxJsonFree}.
  *
  * @example
- * ```ts
+ * ```hx
  * let json: HxJson = undefined;
  * let error: u8[128] = undefined;
  * let at: u32 = 0;
  * const text = "{ \"name\": \"app\", } // trailing comma";
- * hx_json_parse(text.ptr, text.len, &json, &error, error.len, &at); // true
- * hx_json_free(&json);
+ * hxJsonParse(text.ptr, text.len, &json, &error, error.len, &at); // true
+ * hxJsonFree(&json);
  * ```
  *
- * @see hx_json_get
- * @see hx_json_free
+ * @see hxJsonGet
+ * @see hxJsonFree
  *
  * @since 1.0.0
  */
 
-export extern "C" function hx_json_parse(text: readonly u8[*], len: usize, out: *HxJson, error: u8[*], error_size: usize,
-                                         error_offset: *u32): bool {
-    let r = Reader { text: "", pos: 0, error: [], error_offset, failed: false, depth: 0 };
+export extern "C" function hxJsonParse(text: readonly u8[*], len: usize, out: *HxJson, error: u8[*], errorSize: usize,
+                                         errorOffset: *u32): bool {
+    let r = Reader { text: "", pos: 0, error: [], errorOffset, failed: false, depth: 0 };
     unsafe {
         if (len > 0) r.text = text[0..len];
-        r.error = error[0..error_size];
+        r.error = error[0..errorSize];
     }
     let ok = readValue(&r, out) && skip(&r);
     if (ok && r.pos < len) ok = fail(&r, r.pos, "unexpected text after the value");
     if (!ok) {
-        hx_json_free(out);
-        *out = EMPTY_JSON;
+        hxJsonFree(out);
+        *out = EmptyJson;
     }
     return ok;
 }
@@ -452,29 +499,29 @@ export extern "C" function hx_json_parse(text: readonly u8[*], len: usize, out: 
  * Releasing an already released value does nothing.
  *
  * @example
- * ```ts
- * hx_json_free(&json);
+ * ```hx
+ * hxJsonFree(&json);
  * json.count; // 0
  * ```
  *
  * @since 1.0.0
  */
 
-export extern "C" function hx_json_free(json: *HxJson): void {
+export extern "C" function hxJsonFree(json: *HxJson): void {
     free(json.string);
     unsafe {
         for (const i of 0..json.count) {
-            hx_json_free(&json.items![i]);
+            hxJsonFree(&json.items![i]);
             if (const keys = json.keys) free(keys[i]);
         }
         free(@ptrCast(?u8[*], json.items));
         free(@ptrCast(?u8[*], json.keys));
-        free(@ptrCast(?u8[*], json.key_starts));
+        free(@ptrCast(?u8[*], json.keyStarts));
     }
     json.string = null;
     json.items = null;
     json.keys = null;
-    json.key_starts = null;
+    json.keyStarts = null;
     json.count = 0;
 }
 
@@ -490,19 +537,19 @@ export extern "C" function hx_json_free(json: *HxJson): void {
  * so lookups chain without a check in between.
  *
  * @example
- * ```ts
+ * ```hx
  * // { "c": { "sources": ["host.c"] } }
- * hx_json_get(hx_json_get(&json, "c"), "sources"); // the array
- * hx_json_get(hx_json_get(&json, "x"), "sources"); // null
+ * hxJsonGet(hxJsonGet(&json, "c"), "sources"); // the array
+ * hxJsonGet(hxJsonGet(&json, "x"), "sources"); // null
  * ```
  *
  * @since 1.0.0
  */
 
-export extern "C" function hx_json_get(json: ?readonly *HxJson, key: readonly u8[*]): ?readonly *HxJson {
+export extern "C" function hxJsonGet(json: ?readonly *HxJson, key: readonly u8[*]): ?readonly *HxJson {
     if (json == null) return null;
     const object = json;
-    if (object.kind != JSON_OBJECT) return null;
+    if (object.kind != JsonObject) return null;
     unsafe {
         for (const i of 0..object.count) {
             if (cEqual(object.keys![i], key)) return &object.items![i];
@@ -515,7 +562,7 @@ export extern "C" function hx_json_get(json: ?readonly *HxJson, key: readonly u8
  * Writes a text as a JSON string literal, with its quotes and escapes.
  *
  * @param text - The NUL-terminated text to quote
- * @param out_ptr - The buffer that receives the NUL-terminated literal
+ * @param outPtr - The buffer that receives the NUL-terminated literal
  * @param size - The size of the buffer in bytes
  *
  * @remarks
@@ -524,20 +571,20 @@ export extern "C" function hx_json_get(json: ?readonly *HxJson, key: readonly u8
  * A buffer of fewer than 3 bytes is left untouched.
  *
  * @example
- * ```ts
+ * ```hx
  * let out: u8[64] = undefined;
- * hx_json_quote("say \"hi\"", &out, out.len); // "say \"hi\"" with its quotes
+ * hxJsonQuote("say \"hi\"", &out, out.len); // "say \"hi\"" with its quotes
  * ```
  *
  * @since 1.0.0
  */
 
-export extern "C" function hx_json_quote(text: readonly u8[*], out_ptr: u8[*], size: usize): void {
+export extern "C" function hxJsonQuote(text: readonly u8[*], outPtr: u8[*], size: usize): void {
     if (size < 3) return;
     let out: u8[] = [];
     let input: readonly u8[] = [];
     unsafe {
-        out = out_ptr[0..size];
+        out = outPtr[0..size];
         input = text[0..strlen(text)];
     }
     const digits = "0123456789abcdef";

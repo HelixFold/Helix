@@ -2,15 +2,15 @@
  * Imports
  */
 
-import { hx_alloc, hx_zalloc, hx_realloc, hx_strndup, hx_vec_grow_impl, free } from "@components/memory.component";
+import { hxAlloc, hxZalloc, hxRealloc, hxStrndup, hxVecGrowImpl, free } from "@components/memory.component";
 
 /**
  * Tests
  */
 
-describe("hx_alloc") {
+describe("hxAlloc") {
     test("should hand out a block that holds what is written to it") {
-        const bytes = hx_alloc(4);
+        const bytes = hxAlloc(4);
         unsafe {
             bytes[0] = 1;
             bytes[3] = 4;
@@ -22,16 +22,16 @@ describe("hx_alloc") {
     }
 
     test("should hand out a block for a request of zero bytes") {
-        const bytes = hx_alloc(0);
+        const bytes = hxAlloc(0);
 
         expect(@intFromPtr(bytes)).not.toBe(0);
         free(bytes);
     }
 }
 
-describe("hx_zalloc") {
+describe("hxZalloc") {
     test("should hand out a block with every byte at zero") {
-        const bytes = hx_zalloc(64);
+        const bytes = hxZalloc(64);
         unsafe {
             for (const i of 0..64) expect(bytes[i]).toBe(0);
         }
@@ -40,21 +40,21 @@ describe("hx_zalloc") {
     }
 }
 
-describe("hx_realloc") {
+describe("hxRealloc") {
     test("should allocate a new block when the pointer is null") {
-        const bytes = hx_realloc(null, 8);
+        const bytes = hxRealloc(null, 8);
 
         expect(@intFromPtr(bytes)).not.toBe(0);
         free(bytes);
     }
 
     test("should keep the contents when a block grows") {
-        let bytes = hx_alloc(2);
+        let bytes = hxAlloc(2);
         unsafe {
             bytes[0] = 7;
             bytes[1] = 9;
         }
-        bytes = hx_realloc(bytes, 4096);
+        bytes = hxRealloc(bytes, 4096);
 
         unsafe {
             expect(bytes[0]).toBe(7);
@@ -64,9 +64,9 @@ describe("hx_realloc") {
     }
 }
 
-describe("hx_strndup") {
+describe("hxStrndup") {
     test("should copy only the given number of bytes and end the copy with a NUL") {
-        const copy = hx_strndup("main.hx", 4);
+        const copy = hxStrndup("main.hx", 4);
 
         unsafe {
             const text: string = copy[0..4];
@@ -77,7 +77,7 @@ describe("hx_strndup") {
     }
 
     test("should copy an empty text as a lone NUL") {
-        const copy = hx_strndup("", 0);
+        const copy = hxStrndup("", 0);
 
         unsafe {
             expect(copy[0]).toBe(0);
@@ -86,11 +86,11 @@ describe("hx_strndup") {
     }
 }
 
-describe("hx_vec_grow_impl") {
+describe("hxVecGrowImpl") {
     test("should start an empty array at a capacity of eight") {
         let items: ?u8[*] = null;
         let cap: u32 = 0;
-        hx_vec_grow_impl(&items, &cap, 1, 4);
+        hxVecGrowImpl(&items, &cap, 1, 4);
 
         expect(cap).toBe(8);
         free(items);
@@ -99,8 +99,8 @@ describe("hx_vec_grow_impl") {
     test("should at least double the capacity when it grows") {
         let items: ?u8[*] = null;
         let cap: u32 = 0;
-        hx_vec_grow_impl(&items, &cap, 1, 4);
-        hx_vec_grow_impl(&items, &cap, 9, 4);
+        hxVecGrowImpl(&items, &cap, 1, 4);
+        hxVecGrowImpl(&items, &cap, 9, 4);
 
         expect(cap).toBe(16);
         free(items);
@@ -109,7 +109,7 @@ describe("hx_vec_grow_impl") {
     test("should jump straight to the requested capacity when doubling falls short") {
         let items: ?u8[*] = null;
         let cap: u32 = 0;
-        hx_vec_grow_impl(&items, &cap, 100, 1);
+        hxVecGrowImpl(&items, &cap, 100, 1);
 
         expect(cap).toBe(100);
         free(items);
@@ -118,9 +118,9 @@ describe("hx_vec_grow_impl") {
     test("should leave an array that is already large enough untouched") {
         let items: ?u8[*] = null;
         let cap: u32 = 0;
-        hx_vec_grow_impl(&items, &cap, 8, 4);
+        hxVecGrowImpl(&items, &cap, 8, 4);
         const before = @intFromPtr(items);
-        hx_vec_grow_impl(&items, &cap, 5, 4);
+        hxVecGrowImpl(&items, &cap, 5, 4);
 
         expect(cap).toBe(8);
         expect(@intFromPtr(items)).toBe(before);

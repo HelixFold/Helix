@@ -5,12 +5,14 @@
 import * as fmt from "std/fmt";
 import { cAllocator, free as freeItems } from "std";
 import { HxSource } from "@models/structs/source-model.struct";
+import { files, hxSourceLineCol, hxSourceLine } from "@models/source.model";
 import { HxDiag, HxDiagList } from "@models/structs/diagnostic-model.struct";
-import { files, hx_source_line_col, hx_source_line } from "@models/source.model";
-import { TAB_WIDTH, RESET, BOLD, BLUE, LEVEL_LABELS, LEVEL_COLORS } from "@constants/diagnostic.constant";
+import { TabWidth, Reset, Bold, Blue, LevelLabels, LevelColors } from "@constants/diagnostic.constant";
 
 /**
  * The C library functions that the renderer writes through.
+ *
+ * @since 1.0.0
  */
 
 extern "C" function strlen(text: readonly u8[*]): usize;
@@ -21,6 +23,11 @@ extern "C" function fwrite(bytes: readonly u8[*], size: usize, count: usize, fil
  *
  * @param out - The C `FILE` to write to
  * @param text - The text to write, where an empty text writes nothing
+ *
+ * @remarks
+ * It skips `fwrite` for an empty text, and it ignores a short write.
+ *
+ * @since 1.0.0
  */
 
 function put(out: ?u8[*], text: string): void {
@@ -35,6 +42,8 @@ function put(out: ?u8[*], text: string): void {
  *
  * @remarks
  * Out of memory loses this one piece of output and nothing else.
+ *
+ * @since 1.0.0
  */
 
 function putf(out: ?u8[*], text: Format): void {
@@ -49,6 +58,11 @@ function putf(out: ?u8[*], text: Format): void {
  *
  * @param out - The C `FILE` to write to
  * @param count - The number of spaces
+ *
+ * @remarks
+ * It writes one space per call to {@link put}, which is cheap enough for the short runs of a gutter or a caret column.
+ *
+ * @since 1.0.0
  */
 
 function spaces(out: ?u8[*], count: u32): void {
@@ -60,6 +74,11 @@ function spaces(out: ?u8[*], count: u32): void {
  *
  * @param text - The string to measure
  * @returns The bytes before the NUL
+ *
+ * @remarks
+ * The slice shares the bytes of the string, so it lives only as long as they do.
+ *
+ * @since 1.0.0
  */
 
 function cString(text: readonly u8[*]): string {
@@ -73,6 +92,11 @@ function cString(text: readonly u8[*]): string {
  *
  * @param value - The number to measure
  * @returns The number of digits, which is 1 for 0
+ *
+ * @remarks
+ * The renderer uses it to size the gutter, so every gutter line lines up with the line number.
+ *
+ * @since 1.0.0
  */
 
 function digitCount(value: u32): u32 {
@@ -92,12 +116,18 @@ function digitCount(value: u32): u32 {
  * @param from - The offset where the stretch starts
  * @param to - The offset one past where the stretch ends
  * @returns The width in columns, with tabs expanded and each code point counted once
+ *
+ * @remarks
+ * A tab advances to the next multiple of {@link TabWidth}, and continuation bytes of UTF-8 add nothing.
+ * It treats every code point as one column wide, so wide characters such as CJK misalign the caret.
+ *
+ * @since 1.0.0
  */
 
 function displayWidth(text: readonly u8[], from: u32, to: u32): u32 {
     let width: u32 = 0;
     for (const c of text[from..to]) {
-        if (c == '\t') width += TAB_WIDTH - (width % TAB_WIDTH);
+        if (c == '\t') width += TabWidth - (width % TabWidth);
         else if ((c & 0xC0) != 0x80) width += 1;
     }
     return width;
@@ -108,13 +138,18 @@ function displayWidth(text: readonly u8[], from: u32, to: u32): u32 {
  *
  * @param out - The C `FILE` to write to
  * @param line - The line, without its line break
+ *
+ * @remarks
+ * It expands tabs with the same rule as {@link displayWidth}, so the underline lines up with the printed text.
+ *
+ * @since 1.0.0
  */
 
 function printLine(out: ?u8[*], line: readonly u8[]): void {
     let width: u32 = 0;
     for (const c, i of line) {
         if (c == '\t') {
-            const n = TAB_WIDTH - (width % TAB_WIDTH);
+            const n = TabWidth - (width % TabWidth);
             width += n;
             spaces(out, n);
         } else {
@@ -138,14 +173,16 @@ function printLine(out: ?u8[*], line: readonly u8[]): void {
  *
  * @remarks
  * A span that runs over several lines is underlined on its first line only.
+ *
+ * @since 1.0.0
  */
 
 function renderLocation(out: ?u8[*], src: readonly *HxSource, start: u32, len: u32, underline: string, gutter: string,
                         reset: string): u32 {
-    const pos = hx_source_line_col(src, start);
+    const pos = hxSourceLineCol(src, start);
     const pad = digitCount(pos.line);
     let lineLen: u32 = 0;
-    const lineStart = hx_source_line(src, pos.global_line, &lineLen);
+    const lineStart = hxSourceLine(src, pos.globalLine, &lineLen);
     const lineEnd = lineStart + lineLen;
     let text: readonly u8[] = [];
     unsafe {
@@ -189,19 +226,19 @@ function renderLocation(out: ?u8[*], src: readonly *HxSource, start: u32, len: u
  * Panic messages use it to show where a running program stopped.
  *
  * @example
- * ```ts
- * hx_diag_render_location(stderr, &src, 4, 1);
+ * ```hx
+ * hxDiagRenderLocation(stderr, &src, 4, 1);
  * //  --> main.hx:1:5
  * //   |
  * // 1 | let a = 1;
  * //   |     ^
  * ```
  *
- * @see hx_diag_render
+ * @see hxDiagRender
  * @since 1.0.0
  */
 
-export extern "C" function hx_diag_render_location(out: ?u8[*], src: readonly *HxSource, start: u32, len: u32): void {
+export extern "C" function hxDiagRenderLocation(out: ?u8[*], src: readonly *HxSource, start: u32, len: u32): void {
     void renderLocation(out, src, start, len, "", "", "");
 }
 
@@ -211,16 +248,22 @@ export extern "C" function hx_diag_render_location(out: ?u8[*], src: readonly *H
  * @param diag - The diagnostic to write
  * @param out - The C `FILE` to write to
  * @param color - Whether to color the output with ANSI sequences
+ *
+ * @remarks
+ * A diagnostic without a source prints only its message and its hint, with a gutter one column wide.
+ * Without color every color sequence is an empty string, so the layout stays the same.
+ *
+ * @since 1.0.0
  */
 
 function renderOne(diag: readonly *HxDiag, out: ?u8[*], color: bool): void {
     const level = diag.level as usize;
-    const levelColor = color ? LEVEL_COLORS[level] : "";
-    const bold = color ? BOLD : "";
-    const gutter = color ? BLUE : "";
-    const reset = color ? RESET : "";
+    const levelColor = color ? LevelColors[level] : "";
+    const bold = color ? Bold : "";
+    const gutter = color ? Blue : "";
+    const reset = color ? Reset : "";
 
-    putf(out, `${levelColor}${LEVEL_LABELS[level]}${reset}: ${bold}${cString(diag.message)}${reset}\n`);
+    putf(out, `${levelColor}${LevelLabels[level]}${reset}: ${bold}${cString(diag.message)}${reset}\n`);
     let pad: u32 = 1;
     if (const src = diag.src) pad = renderLocation(out, src, diag.start, diag.len, levelColor, gutter, reset);
     if (const text = diag.hint) {
@@ -242,8 +285,8 @@ function renderOne(diag: readonly *HxDiag, out: ?u8[*], color: bool): void {
  * Tabs in the source line are expanded, so the underline sits under the right characters.
  *
  * @example
- * ```ts
- * hx_diag_render(&diags, stderr, false);
+ * ```hx
+ * hxDiagRender(&diags, stderr, false);
  * // error: unterminated string literal
  * //  --> src/main.hx:3:15
  * //   |
@@ -252,12 +295,12 @@ function renderOne(diag: readonly *HxDiag, out: ?u8[*], color: bool): void {
  * //   = hint: close it with `"`
  * ```
  *
- * @see hx_diag_render_location
+ * @see hxDiagRenderLocation
  * @since 1.0.0
  */
 
-export extern "C" function hx_diag_render(list: readonly *HxDiagList, out: ?u8[*], color: bool): void {
-    for (const i of 0..list.items_len) {
+export extern "C" function hxDiagRender(list: readonly *HxDiagList, out: ?u8[*], color: bool): void {
+    for (const i of 0..list.itemsLen) {
         unsafe {
             renderOne(&list.items![i], out, color);
         }
