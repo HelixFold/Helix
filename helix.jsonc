@@ -4,6 +4,10 @@
     "version": "1.0.0-alpha.0",
     "license": "MIT",
     "description": "The Helix compiler",
+    "c": {
+        "sources": ["src/modules/driver/bindings/host.c"],
+        "systemLibraries": ["LLVM", "clang"]
+    },
     "aliases": {
         "@models": "src/models",
         "@structs": "src/structs",
