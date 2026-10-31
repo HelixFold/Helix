@@ -1,5 +1,7 @@
 /**
  * The C heap functions that the helpers below wrap.
+ *
+ * @since 1.0.0
  */
 
 extern "C" function malloc(size: usize): ?u8[*];
@@ -9,7 +11,7 @@ extern "C" function abort(): noreturn;
 extern "C" function strlen(text: readonly u8[*]): usize;
 
 /**
- * Releases a block that {@link hx_alloc}, {@link hx_zalloc}, or {@link hx_realloc} handed out.
+ * Releases a block that {@link hxAlloc}, {@link hxZalloc}, or {@link hxRealloc} handed out.
  *
  * @param ptr - The block to release, or `null`, which does nothing
  *
@@ -17,8 +19,8 @@ extern "C" function strlen(text: readonly u8[*]): usize;
  * This is the C library's `free`, declared here so that the rest of the compiler imports it from one place.
  *
  * @example
- * ```ts
- * const bytes = hx_alloc(16);
+ * ```hx
+ * const bytes = hxAlloc(16);
  * free(bytes);
  * ```
  *
@@ -37,15 +39,15 @@ export extern "C" function free(ptr: ?u8[*]): void;
  * The message goes to standard error, and the process aborts without unwinding.
  *
  * @example
- * ```ts
- * hx_fatal_message("unknown node kind");
+ * ```hx
+ * hxFatalMessage("unknown node kind");
  * // helix: internal compiler error: unknown node kind
  * ```
  *
  * @since 1.0.0
  */
 
-export extern "C" function hx_fatal_message(message: readonly u8[*]): noreturn {
+export extern "C" function hxFatalMessage(message: readonly u8[*]): noreturn {
     unsafe {
         eprint(`helix: internal compiler error: ${message[0..strlen(message)]}\n`);
     }
@@ -59,6 +61,8 @@ export extern "C" function hx_fatal_message(message: readonly u8[*]): noreturn {
  *
  * @remarks
  * Every allocation helper funnels its failure here, so a caller never checks for `null`.
+ *
+ * @since 1.0.0
  */
 
 function outOfMemory(size: usize): noreturn {
@@ -78,16 +82,16 @@ function outOfMemory(size: usize): noreturn {
  * Release the block with {@link free}.
  *
  * @example
- * ```ts
- * const bytes = hx_alloc(64); // 64 bytes, contents undefined
+ * ```hx
+ * const bytes = hxAlloc(64); // 64 bytes, contents undefined
  * free(bytes);
  * ```
  *
- * @see hx_zalloc
+ * @see hxZalloc
  * @since 1.0.0
  */
 
-export extern "C" function hx_alloc(size: usize): u8[*] {
+export extern "C" function hxAlloc(size: usize): u8[*] {
     return malloc(size != 0 ? size : 1) ?? outOfMemory(size);
 }
 
@@ -98,19 +102,19 @@ export extern "C" function hx_alloc(size: usize): u8[*] {
  * @returns The new block, never `null`
  *
  * @remarks
- * Choose it over {@link hx_alloc} when the caller relies on every byte starting at zero, as a hash table of empty
+ * Choose it over {@link hxAlloc} when the caller relies on every byte starting at zero, as a hash table of empty
  * slots does.
  *
  * @example
- * ```ts
- * const slots = hx_zalloc(1024 * 4); // 1024 slots of 4 bytes, all 0
+ * ```hx
+ * const slots = hxZalloc(1024 * 4); // 1024 slots of 4 bytes, all 0
  * ```
  *
- * @see hx_alloc
+ * @see hxAlloc
  * @since 1.0.0
  */
 
-export extern "C" function hx_zalloc(size: usize): u8[*] {
+export extern "C" function hxZalloc(size: usize): u8[*] {
     return calloc(1, size != 0 ? size : 1) ?? outOfMemory(size);
 }
 
@@ -126,15 +130,15 @@ export extern "C" function hx_zalloc(size: usize): u8[*] {
  * The old pointer is invalid after the call, so callers store the result in its place.
  *
  * @example
- * ```ts
- * let items = hx_realloc(null, 8);  // a new 8-byte block
- * items = hx_realloc(items, 16);    // grown to 16, the first 8 bytes kept
+ * ```hx
+ * let items = hxRealloc(null, 8);  // a new 8-byte block
+ * items = hxRealloc(items, 16);    // grown to 16, the first 8 bytes kept
  * ```
  *
  * @since 1.0.0
  */
 
-export extern "C" function hx_realloc(ptr: ?u8[*], size: usize): u8[*] {
+export extern "C" function hxRealloc(ptr: ?u8[*], size: usize): u8[*] {
     return realloc(ptr, size != 0 ? size : 1) ?? outOfMemory(size);
 }
 
@@ -149,15 +153,15 @@ export extern "C" function hx_realloc(ptr: ?u8[*], size: usize): u8[*] {
  * The copy stops at `len` even when the text holds a NUL earlier, so it also copies binary data.
  *
  * @example
- * ```ts
- * const copy = hx_strndup("main.hx", 4); // 'main', NUL-terminated
+ * ```hx
+ * const copy = hxStrndup("main.hx", 4); // 'main', NUL-terminated
  * ```
  *
  * @since 1.0.0
  */
 
-export extern "C" function hx_strndup(text: readonly u8[*], len: usize): u8[*] {
-    const copy = hx_alloc(len + 1);
+export extern "C" function hxStrndup(text: readonly u8[*], len: usize): u8[*] {
+    const copy = hxAlloc(len + 1);
     unsafe {
         for (const i of 0..len) copy[i] = text[i];
         copy[len] = 0;
@@ -171,7 +175,7 @@ export extern "C" function hx_strndup(text: readonly u8[*], len: usize): u8[*] {
  * @param items - The array pointer, which the call replaces when it grows
  * @param cap - The capacity of the array in elements, which the call updates
  * @param min - The number of elements that the array must hold afterwards
- * @param elem_size - The size of one element in bytes
+ * @param elemSize - The size of one element in bytes
  *
  * @remarks
  * The capacity at least doubles, or starts at 8 for an empty array,
@@ -180,18 +184,18 @@ export extern "C" function hx_strndup(text: readonly u8[*], len: usize): u8[*] {
  * A capacity that would pass the 32-bit range stops the compiler with an internal compiler error.
  *
  * @example
- * ```ts
+ * ```hx
  * let items: ?u8[*] = null;
  * let cap: u32 = 0;
- * hx_vec_grow_impl(&items, &cap, 1, 4);  // cap: 8
- * hx_vec_grow_impl(&items, &cap, 9, 4);  // cap: 16
- * hx_vec_grow_impl(&items, &cap, 10, 4); // cap: 16, unchanged
+ * hxVecGrowImpl(&items, &cap, 1, 4);  // cap: 8
+ * hxVecGrowImpl(&items, &cap, 9, 4);  // cap: 16
+ * hxVecGrowImpl(&items, &cap, 10, 4); // cap: 16, unchanged
  * ```
  *
  * @since 1.0.0
  */
 
-export extern "C" function hx_vec_grow_impl(items: *?u8[*], cap: *u32, min: u32, elem_size: usize): void {
+export extern "C" function hxVecGrowImpl(items: *?u8[*], cap: *u32, min: u32, elemSize: usize): void {
     if (*cap >= min) return;
     let next: u64 = *cap != 0 ? (*cap as u64) * 2 : 8;
     if (next < (min as u64)) next = min as u64;
@@ -199,6 +203,6 @@ export extern "C" function hx_vec_grow_impl(items: *?u8[*], cap: *u32, min: u32,
         eprint("helix: internal compiler error: vector capacity overflow\n");
         abort();
     }
-    *items = hx_realloc(*items, (next as usize) * elem_size);
+    *items = hxRealloc(*items, (next as usize) * elemSize);
     *cap = @truncate(u32, next);
 }
