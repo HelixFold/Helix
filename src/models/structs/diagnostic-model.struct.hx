@@ -8,11 +8,16 @@ import { HxArena } from "@services/structs/arena-service.struct";
 /**
  * One error, warning, or note, with the span of source that it points at.
  *
+ * @remarks
+ * The message and the hint live in the arena of the list that holds the diagnostic,
+ * so they stay valid until that list is released.
+ * A diagnostic without a source has no position, so the printer shows no location for it.
+ *
  * @example
- * ```ts
+ * ```hx
  * // error: unterminated string literal
  * //  --> src/main.hx:3:15
- * // { level: DIAG_ERROR, start: 40, len: 7, message: 'unterminated string literal', hint: 'close it with `"`' }
+ * // { level: DiagError, start: 40, len: 7, message: 'unterminated string literal', hint: 'close it with `"`' }
  * ```
  *
  * @see HxDiagList
@@ -21,11 +26,11 @@ import { HxArena } from "@services/structs/arena-service.struct";
 
 export extern "C" struct HxDiag {
     /**
-     * The level, one of {@link DIAG_ERROR}, {@link DIAG_WARNING}, or {@link DIAG_NOTE}.
+     * The level, one of {@link DiagError}, {@link DiagWarning}, or {@link DiagNote}.
      *
      * @example
-     * ```ts
-     * diag.level; // DIAG_ERROR
+     * ```hx
+     * diag.level; // DiagError
      * ```
      *
      * @since 1.0.0
@@ -37,7 +42,7 @@ export extern "C" struct HxDiag {
      * The source that the span points into, or `null` for a diagnostic without a location.
      *
      * @example
-     * ```ts
+     * ```hx
      * diag.src; // null for a problem with the command line
      * ```
      *
@@ -50,7 +55,7 @@ export extern "C" struct HxDiag {
      * The offset of the first byte of the span.
      *
      * @example
-     * ```ts
+     * ```hx
      * diag.start; // 40
      * ```
      *
@@ -66,7 +71,7 @@ export extern "C" struct HxDiag {
      * A length of 0 still prints a single caret.
      *
      * @example
-     * ```ts
+     * ```hx
      * diag.len; // 7
      * ```
      *
@@ -79,7 +84,7 @@ export extern "C" struct HxDiag {
      * The NUL-terminated message, which lives in the arena of the list.
      *
      * @example
-     * ```ts
+     * ```hx
      * diag.message; // 'unterminated string literal'
      * ```
      *
@@ -92,7 +97,7 @@ export extern "C" struct HxDiag {
      * The NUL-terminated hint, usually the fix, or `null` when there is none.
      *
      * @example
-     * ```ts
+     * ```hx
      * diag.hint; // 'close it with `"`'
      * ```
      *
@@ -107,18 +112,18 @@ export extern "C" struct HxDiag {
  *
  * @remarks
  * Every message and hint lives in the arena of the list, so the caller may release its own text after each call.
- * Start it zeroed, and release it with {@link hx_diag_list_free}.
+ * Start it zeroed, and release it with {@link hxDiagListFree}.
  *
  * @example
- * ```ts
- * let diags = HxDiagList { items: null, items_len: 0, items_cap: 0, arena: HxArena { head: null }, error_count: 0 };
- * emit(&diags, DIAG_ERROR, &src, 4, 1, "unexpected character");
- * hx_diag_render(&diags, stderr, true);
- * hx_diag_list_free(&diags);
+ * ```hx
+ * let diags = HxDiagList { items: null, itemsLen: 0, itemsCap: 0, arena: HxArena { head: null }, errorCount: 0 };
+ * emit(&diags, DiagError, &src, 4, 1, "unexpected character");
+ * hxDiagRender(&diags, stderr, true);
+ * hxDiagListFree(&diags);
  * ```
  *
  * @see emit
- * @see hx_diag_render
+ * @see hxDiagRender
  *
  * @since 1.0.0
  */
@@ -128,7 +133,7 @@ export extern "C" struct HxDiagList {
      * The diagnostics, oldest first.
      *
      * @example
-     * ```ts
+     * ```hx
      * diags.items![0]; // the first diagnostic reported
      * ```
      *
@@ -141,33 +146,33 @@ export extern "C" struct HxDiagList {
      * The number of diagnostics in the list.
      *
      * @example
-     * ```ts
-     * diags.items_len; // 2
+     * ```hx
+     * diags.itemsLen; // 2
      * ```
      *
      * @since 1.0.0
      */
 
-    items_len: u32,
+    itemsLen: u32,
 
     /**
      * The capacity of the diagnostic array.
      *
      * @example
-     * ```ts
-     * diags.items_cap; // 8 after the first diagnostic
+     * ```hx
+     * diags.itemsCap; // 8 after the first diagnostic
      * ```
      *
      * @since 1.0.0
      */
 
-    items_cap: u32,
+    itemsCap: u32,
 
     /**
      * The arena that holds every message and hint.
      *
      * @example
-     * ```ts
+     * ```hx
      * diags.arena.head; // null before the first diagnostic
      * ```
      *
@@ -183,12 +188,12 @@ export extern "C" struct HxDiagList {
      * A pass compares it before and after its run to learn whether it reported an error.
      *
      * @example
-     * ```ts
-     * diags.error_count; // 1 after one error and one warning
+     * ```hx
+     * diags.errorCount; // 1 after one error and one warning
      * ```
      *
      * @since 1.0.0
      */
 
-    error_count: u32,
+    errorCount: u32,
 }
