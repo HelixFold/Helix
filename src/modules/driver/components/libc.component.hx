@@ -121,6 +121,8 @@ export function linkedLlvmLibDir(): ?string {
  *
  * @remarks
  * A release has LLVM linked in and its tools in `lib/llvm/bin`, so its folder is `lib/llvm/lib` next to the compiler.
+ * A compiler built from the repository has no `lib/llvm` of its own,
+ * so it takes the LLVM that the toolchain installs in `$HELIX_HOME/llvm`, with its tools in `$HELIX_HOME/llvm/bin`.
  * Otherwise it is the folder of the libclang that the compiler is linked to, from {@link linkedLlvmLibDir}.
  * {@link llvmTool} finds the LLVM tools next to it.
  *
@@ -135,6 +137,8 @@ export function linkedLlvmLibDir(): ?string {
 
 export function llvmLibDir(): ?string {
     if (const shipped = os.besideCompiler("lib/llvm/lib")) return shipped;
+    const installed = allocCString(`${os.helixHome("llvm")}/lib`);
+    if (os.readable(allocCString(`${installed}/clang`))) return installed;
     return linkedLlvmLibDir();
 }
 
