@@ -5,11 +5,11 @@
 import * as fmt from "std/fmt";
 import { cAllocator } from "std";
 import { endsWith, indexOf } from "std/text";
-import { strings, add } from "@modules/driver/components/os.component";
-import { bareMetalFlags } from "@modules/driver/components/libc.component";
+import { appleLinker } from "@modules/driver/components/libc.component";
+import { strings, add, exists } from "@modules/driver/components/os.component";
 import { Strings } from "@modules/driver/components/structs/os-component.struct";
-import { macosSdk, macosVersion, clangResourceDir, bareMetal } from "@modules/driver/components/libc.component";
-import { libcEnsure, llvmTool, findTool, addLinker, appleLinker } from "@modules/driver/components/libc.component";
+import { bareMetal, libcEnsure, llvmTool, findTool, addLinker } from "@modules/driver/components/libc.component";
+import { bareMetalFlags, macosSdk, macosVersion, clangResourceDir } from "@modules/driver/components/libc.component";
 
 /**
  * Tests
@@ -94,6 +94,22 @@ describe("addLinker") {
     }
 }
 
+/**
+ * Whether this machine runs macOS.
+ *
+ * @returns `true` when the system version file of macOS exists
+ *
+ * @remarks
+ * Only a Mac has an SDK and a macOS version,
+ * so the cases for them expect a value on a Mac and `null` on any other machine.
+ *
+ * @since 1.0.0
+ */
+
+function onMac(): bool {
+    return exists("/System/Library/CoreServices/SystemVersion.plist");
+}
+
 describe("appleLinker") {
     test("should find the ld of the command-line tools or of Xcode") {
         expect(endsWith(appleLinker() ?? "/usr/bin/ld", "/usr/bin/ld")).toBeTrue();
@@ -101,10 +117,10 @@ describe("appleLinker") {
 }
 
 describe("macosSdk") {
-    test("should find an SDK with the version from its settings file") {
+    test("should find an SDK with the version from its settings file on a Mac") {
         const sdk = macosSdk();
 
-        expect(sdk).toBeDefined();
+        expect(sdk != null).toBe(onMac());
         if (const found = sdk) {
             expect(endsWith(found.path, ".sdk")).toBeTrue();
             expect(indexOf(found.version, ".") != null).toBeTrue();
@@ -113,11 +129,14 @@ describe("macosSdk") {
 }
 
 describe("macosVersion") {
-    test("should give a dotted version number") {
-        const version = macosVersion() ?? "";
+    test("should give a dotted version number on a Mac and null elsewhere") {
+        const version = macosVersion();
 
-        expect(version.len > 0 && version[0] >= '1' && version[0] <= '9').toBeTrue();
-        expect(indexOf(version, ".") != null).toBeTrue();
+        expect(version != null).toBe(onMac());
+        if (const found = version) {
+            expect(found.len > 0 && found[0] >= '1' && found[0] <= '9').toBeTrue();
+            expect(indexOf(found, ".") != null).toBeTrue();
+        }
     }
 }
 
