@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push:
+    tags: [ "v*" ]
+  workflow_dispatch:   # builds and checks every platform without publishing
+
+jobs:
+  # Every platform, built on Linux by build.hx's `release` step into helix-out/release/<target>.
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-helix
+        with:
+          macos-sdk: true
+
+      - run: helix build release
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release
+          path: helix-out/release/
+
+  # Each platform's binary, run on that platform.
+  check:
+    name: check ${{ matrix.target }}
+    needs: build
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: x86_64-linux, runner: ubuntu-24.04 }
+          - { target: aarch64-linux, runner: ubuntu-24.04-arm }
+          - { target: x86_64-macos, runner: macos-15-intel }
+          - { target: aarch64-macos, runner: macos-latest }
+          - { target: x86_64-windows, runner: windows-latest }
+          - { target: aarch64-windows, runner: windows-11-arm }
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release
+      - name: Run
+        shell: bash
+        run: |
+          helix=$(ls ${{ matrix.target }}/helix*)
+          chmod +x "$helix"   # artifacts don't keep the executable bit
+          "$helix" --help
+
+  # A tag publishes the checked binaries as a GitHub release, one archive per platform.
+  publish:
+    needs: check
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release
+          path: release
+
+      - name: Package
+        run: |
+          mkdir dist
+          for dir in release/*/; do
+              target=$(basename "$dir")
+              name=helix-$GITHUB_REF_NAME-$target
+              case $target in
+                  *-windows) (cd "$dir" && zip -q "$GITHUB_WORKSPACE/dist/$name.zip" helix.exe) ;;
+                  *) chmod +x "$dir/helix" && tar -czf "dist/$name.tar.gz" -C "$dir" helix ;;
+              esac
+          done
+          (cd dist && sha256sum * > SHA256SUMS)
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes
