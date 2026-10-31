@@ -1,7 +1,7 @@
 /*
- * The operating system under the compiler (os.hx, the language server) and hpm (hpm/src/os.hx, over its copy of this
- * file, hpm/c/host.c): what differs between macOS, Linux and Windows, behind one set of functions that take plain types. Paths come back with `/` on every system; Windows
- * takes them that way too.
+ * The operating system under the compiler (os.hx, the language server): what differs between macOS, Linux and Windows,
+ * behind one set of functions that take plain types. Paths come back with `/` on every system; Windows takes them that
+ * way too.
  *
  * Processes are handles (a pid, or a Windows process handle) and their results exit codes: 128 + the signal for one
  * a signal killed, -1 when waiting failed.
@@ -30,10 +30,8 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <sys/time.h>
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
-#include <sys/clonefile.h>
 #include <sys/sysctl.h>
 #endif
 extern char **environ;
@@ -717,162 +715,6 @@ int hx_os_image_of(const void *symbol, char *buf, size_t cap) {
     if (!dladdr(symbol, &info) || !info.dli_fname || strlen(info.dli_fname) >= cap) return 0;
     strcpy(buf, info.dli_fname);
     return 1;
-#endif
-}
-
-/* ---- what hpm uses besides ---- */
-
-/** A symbolic link at `path` holding `target`. Windows allows them with Developer Mode on, or as an administrator. */
-int hx_os_symlink(const char *target, const char *path) {
-#if defined(_WIN32)
-    wchar_t *wt = wide(target), *wp = wide(path);
-    uint32_t mode;
-    int64_t mtime;
-    DWORD flags = SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
-    if (hx_os_stat(target, 1, &mode, &mtime) && (mode & 0170000) == 0040000) flags |= SYMBOLIC_LINK_FLAG_DIRECTORY;
-    int ok = wt && wp && CreateSymbolicLinkW(wp, wt, flags);
-    free(wt);
-    free(wp);
-    return ok;
-#else
-    return symlink(target, path) == 0;
-#endif
-}
-
-/** What the symbolic link at `path` holds, into `buf`; -1 when it isn't one. */
-int64_t hx_os_readlink(const char *path, char *buf, size_t cap) {
-#if defined(_WIN32)
-    uint32_t mode;
-    int64_t mtime;
-    if (!hx_os_stat(path, 0, &mode, &mtime) || (mode & 0170000) != 0120000) return -1;
-    if (!hx_os_realpath(path, buf, cap)) return -1;   // where it leads, resolved: as close as Windows gets
-    return (int64_t)strlen(buf);
-#else
-    ssize_t n = readlink(path, buf, cap);
-    return n;
-#endif
-}
-
-/**
- * `to` as a copy-on-write clone of `from` where the file system can (APFS), else (with `link_ok`) a hard link. 0 when
- * neither worked: the caller copies.
- */
-int hx_os_clone_file(const char *from, const char *to, int link_ok) {
-#if defined(__APPLE__)
-    if (clonefile(from, to, CLONE_NOFOLLOW) == 0) return 1;
-#endif
-    if (!link_ok) return 0;
-#if defined(_WIN32)
-    wchar_t *wf = wide(from), *wt = wide(to);
-    int ok = wf && wt && CreateHardLinkW(wt, wf, NULL);
-    free(wf);
-    free(wt);
-    return ok;
-#else
-    return link(from, to) == 0;
-#endif
-}
-
-/** Sets a file's modification time to now. */
-void hx_os_touch(const char *path) {
-#if defined(_WIN32)
-    wchar_t *w = wide(path);
-    HANDLE h = w ? CreateFileW(w, FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
-                               FILE_FLAG_BACKUP_SEMANTICS, NULL)
-                 : INVALID_HANDLE_VALUE;
-    free(w);
-    if (h == INVALID_HANDLE_VALUE) return;
-    FILETIME now;
-    GetSystemTimeAsFileTime(&now);
-    SetFileTime(h, NULL, NULL, &now);
-    CloseHandle(h);
-#else
-    utimes(path, NULL);
-#endif
-}
-
-/** A file's size in bytes, or -1. */
-int64_t hx_os_file_size(const char *path) {
-#if defined(_WIN32)
-    wchar_t *w = wide(path);
-    WIN32_FILE_ATTRIBUTE_DATA data;
-    int ok = w && GetFileAttributesExW(w, GetFileExInfoStandard, &data);
-    free(w);
-    if (!ok) return -1;
-    return (int64_t)(((uint64_t)data.nFileSizeHigh << 32) | data.nFileSizeLow);
-#else
-    struct stat st;
-    if (stat(path, &st) != 0) return -1;
-    return (int64_t)st.st_size;
-#endif
-}
-
-void hx_os_setenv(const char *name, const char *value) {
-#if defined(_WIN32)
-    _putenv_s(name, value);
-#else
-    setenv(name, value, 1);
-#endif
-}
-
-/**
- * Runs `argv[0]` in this process's place, with its exit code as this one's. POSIX replaces the process; Windows, which
- * can't, runs it and exits with its code. Returns only when it couldn't start.
- */
-void hx_os_exec(const char *const *argv, size_t count) {
-#if defined(_WIN32)
-    int64_t child = hx_os_spawn(argv, count, 0, NULL);
-    if (child < 0) return;
-    int64_t code = hx_os_wait(child);
-    exit(code < 0 ? 1 : (int)code);
-#else
-    char **args = calloc(count + 1, sizeof(char *));
-    for (size_t i = 0; i < count; i++) args[i] = (char *)argv[i];
-    execvp(args[0], args);
-    free(args);
-#endif
-}
-
-/** Seconds since 1970. */
-int64_t hx_os_now(void) {
-    return (int64_t)time(NULL);
-}
-
-void hx_os_sleep(uint32_t seconds) {
-#if defined(_WIN32)
-    Sleep(seconds * 1000);
-#else
-    sleep(seconds);
-#endif
-}
-
-/** This machine's name into `buf`; 0 when it can't be had. */
-int hx_os_hostname(char *buf, size_t cap) {
-#if defined(_WIN32)
-    wchar_t w[256];
-    DWORD n = 256;
-    return GetComputerNameW(w, &n) && narrow(w, buf, cap);
-#else
-    return gethostname(buf, cap) == 0;
-#endif
-}
-
-/** A new folder from `template` (ending in XXXXXX, replaced in place); 0 on failure. */
-int hx_os_make_temp_dir(char *template) {
-#if defined(_WIN32)
-    size_t n = strlen(template);
-    if (n < 6) return 0;
-    for (int attempt = 0; attempt < 100; attempt++) {
-        uint64_t seed = (uint64_t)GetTickCount64() * 6364136223846793005ULL + (uint64_t)GetCurrentProcessId() + (uint64_t)attempt;
-        for (size_t i = n - 6; i < n; i++) {
-            seed = seed * 6364136223846793005ULL + 1442695040888963407ULL;
-            template[i] = "abcdefghijklmnopqrstuvwxyz0123456789"[(seed >> 33) % 36];
-        }
-        if (hx_os_mkdir(template, 0)) return 1;
-    }
-    return 0;
-#else
-    return mkdtemp(template) != NULL;
 #endif
 }
 
