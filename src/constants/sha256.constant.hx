@@ -6,7 +6,7 @@
  * as FIPS 180-4 defines them.
  *
  * @example
- * ```ts
+ * ```hx
  * K[0];  // 0x428a2f98
  * K[63]; // 0xc67178f2
  * ```
@@ -33,7 +33,7 @@ export const K: u32[64] = [
  * Each one is the first 32 bits of the fractional part of the square root of one of the first 8 primes.
  *
  * @example
- * ```ts
+ * ```hx
  * INITIAL[0]; // 0x6a09e667
  * ```
  *

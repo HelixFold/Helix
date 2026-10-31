@@ -2,14 +2,14 @@
  * The kind of a syntax tree node.
  *
  * @remarks
- * Each value fits in one byte, and the order matches {@link NODE_NAMES}, which holds the printed name of each kind.
+ * Each value fits in one byte, and the order matches {@link NodeNames}, which holds the printed name of each kind.
  * Members are grouped by role: declarations, type expressions, literals, expressions, patterns, statements,
  * and test items.
  *
  * @example
- * ```ts
+ * ```hx
  * const kind = NodeKind.FieldAccess;
- * NODE_NAMES[kind]; // '.'
+ * NodeNames[kind]; // '.'
  * ```
  *
  * @since 1.0.0
@@ -23,7 +23,7 @@ export enum NodeKind: u8 {
      * A child slot that holds 0 points at this node, so 0 means the child is absent.
      *
      * @example
-     * ```ts
+     * ```hx
      * if (ready) start();   // without an else branch, its slot holds 0
      * ```
      *
@@ -36,7 +36,7 @@ export enum NodeKind: u8 {
      * A placeholder that the parser leaves where it could not read a construct.
      *
      * @example
-     * ```ts
+     * ```hx
      * const x = ;   // the missing value parses as Invalid
      * ```
      *
@@ -52,7 +52,7 @@ export enum NodeKind: u8 {
      * Its children are the top-level declarations in source order.
      *
      * @example
-     * ```ts
+     * ```hx
      * // main.hx parses into a single File node
      * ```
      *
@@ -65,7 +65,7 @@ export enum NodeKind: u8 {
      * An `import` declaration or an `export ... from` re-export.
      *
      * @example
-     * ```ts
+     * ```hx
      * import { a, b as c } from "./x";
      * import * as ns from "./x";
      * import "./x";
@@ -80,7 +80,7 @@ export enum NodeKind: u8 {
      * One name inside the braces of an import, with its optional alias.
      *
      * @example
-     * ```ts
+     * ```hx
      * import { a, b as c } from "./x";   // a and b as c
      * ```
      *
@@ -93,7 +93,7 @@ export enum NodeKind: u8 {
      * A `const` declaration.
      *
      * @example
-     * ```ts
+     * ```hx
      * const limit = 10;
      * ```
      *
@@ -106,7 +106,7 @@ export enum NodeKind: u8 {
      * A `let` declaration.
      *
      * @example
-     * ```ts
+     * ```hx
      * let count: u32 = 0;
      * ```
      *
@@ -122,7 +122,7 @@ export enum NodeKind: u8 {
      * An `extern` function and an interface member have no body.
      *
      * @example
-     * ```ts
+     * ```hx
      * function add(a: i32, b: i32): i32 { return a + b; }
      * ```
      *
@@ -135,7 +135,7 @@ export enum NodeKind: u8 {
      * One parameter of a function, an arrow function, or a function type.
      *
      * @example
-     * ```ts
+     * ```hx
      * function add(a: i32, b: i32): i32   // a and b
      * ```
      *
@@ -148,7 +148,7 @@ export enum NodeKind: u8 {
      * One type parameter of a generic declaration.
      *
      * @example
-     * ```ts
+     * ```hx
      * function max<T>(a: T, b: T): T   // T
      * ```
      *
@@ -161,7 +161,7 @@ export enum NodeKind: u8 {
      * A `struct` declaration.
      *
      * @example
-     * ```ts
+     * ```hx
      * struct Point { x: f32, y: f32 }
      * ```
      *
@@ -174,7 +174,7 @@ export enum NodeKind: u8 {
      * One field of a struct or of an anonymous struct type.
      *
      * @example
-     * ```ts
+     * ```hx
      * struct Point { x: f32 = 0, y: f32 }   // x and y
      * ```
      *
@@ -187,7 +187,7 @@ export enum NodeKind: u8 {
      * An `enum` declaration with an optional backing type.
      *
      * @example
-     * ```ts
+     * ```hx
      * enum Role: u8 { Admin, User }
      * ```
      *
@@ -200,7 +200,7 @@ export enum NodeKind: u8 {
      * One member of an enum.
      *
      * @example
-     * ```ts
+     * ```hx
      * enum Role: u8 { Admin, User }   // Admin and User
      * ```
      *
@@ -213,7 +213,7 @@ export enum NodeKind: u8 {
      * A tagged `union` declaration.
      *
      * @example
-     * ```ts
+     * ```hx
      * union Shape { circle: f32, square: f32, empty }
      * ```
      *
@@ -226,7 +226,7 @@ export enum NodeKind: u8 {
      * One variant of a union, with an optional payload type.
      *
      * @example
-     * ```ts
+     * ```hx
      * union Shape { circle: f32, empty }   // circle and empty
      * ```
      *
@@ -239,7 +239,7 @@ export enum NodeKind: u8 {
      * An `error` declaration that names a set of errors.
      *
      * @example
-     * ```ts
+     * ```hx
      * error DbError { NotFound, Timeout }
      * ```
      *
@@ -252,7 +252,7 @@ export enum NodeKind: u8 {
      * One error inside an error set.
      *
      * @example
-     * ```ts
+     * ```hx
      * error DbError { NotFound, Timeout }   // NotFound and Timeout
      * ```
      *
@@ -265,7 +265,7 @@ export enum NodeKind: u8 {
      * An `interface` declaration, whose members are method signatures.
      *
      * @example
-     * ```ts
+     * ```hx
      * interface Writer { write(this: *Self, bytes: readonly u8[]): usize | IoError; }
      * ```
      *
@@ -278,7 +278,7 @@ export enum NodeKind: u8 {
      * A `type` declaration that gives a name to another type.
      *
      * @example
-     * ```ts
+     * ```hx
      * type Bytes = u8[];
      * ```
      *
@@ -294,7 +294,7 @@ export enum NodeKind: u8 {
      * {@link NodeKind.ComptimeExpr} is the expression form.
      *
      * @example
-     * ```ts
+     * ```hx
      * comptime { const size = @sizeOf(Point); }
      * ```
      *
@@ -307,7 +307,7 @@ export enum NodeKind: u8 {
      * An optional type, written with a leading `?`.
      *
      * @example
-     * ```ts
+     * ```hx
      * let user: ?User = null;
      * ```
      *
@@ -320,7 +320,7 @@ export enum NodeKind: u8 {
      * A single-item pointer type, written with a leading `*`.
      *
      * @example
-     * ```ts
+     * ```hx
      * function reset(p: *Point): void
      * ```
      *
@@ -333,7 +333,7 @@ export enum NodeKind: u8 {
      * A `readonly` type, which forbids writes through it.
      *
      * @example
-     * ```ts
+     * ```hx
      * function sum(xs: readonly i32[]): i32
      * ```
      *
@@ -346,7 +346,7 @@ export enum NodeKind: u8 {
      * A `dyn` type, which holds any value that implements an interface.
      *
      * @example
-     * ```ts
+     * ```hx
      * let out: dyn Writer = file;
      * ```
      *
@@ -359,7 +359,7 @@ export enum NodeKind: u8 {
      * A slice type, written with an empty `[]` suffix.
      *
      * @example
-     * ```ts
+     * ```hx
      * let bytes: u8[] = buffer[0..4];
      * ```
      *
@@ -375,7 +375,7 @@ export enum NodeKind: u8 {
      * A run of sizes reads in C order, so `f32[3][4]` holds 3 rows of 4.
      *
      * @example
-     * ```ts
+     * ```hx
      * let grid: f32[3][4] = undefined;
      * ```
      *
@@ -388,7 +388,7 @@ export enum NodeKind: u8 {
      * A pointer to an unknown number of items, written with a `[*]` suffix.
      *
      * @example
-     * ```ts
+     * ```hx
      * extern "C" function strlen(s: readonly u8[*]): usize;
      * ```
      *
@@ -401,7 +401,7 @@ export enum NodeKind: u8 {
      * An error union type, which holds either a value or an error.
      *
      * @example
-     * ```ts
+     * ```hx
      * function find(id: u32): *User | DbError
      * ```
      *
@@ -414,7 +414,7 @@ export enum NodeKind: u8 {
      * A function type, written as a parameter list and a return type.
      *
      * @example
-     * ```ts
+     * ```hx
      * let compare: (a: i32, b: i32) => bool = less;
      * ```
      *
@@ -427,7 +427,7 @@ export enum NodeKind: u8 {
      * An anonymous struct type.
      *
      * @example
-     * ```ts
+     * ```hx
      * let pair: struct { a: i32, b: i32 } = undefined;
      * ```
      *
@@ -440,7 +440,7 @@ export enum NodeKind: u8 {
      * An identifier that names a value or a type.
      *
      * @example
-     * ```ts
+     * ```hx
      * count + 1   // count
      * ```
      *
@@ -453,7 +453,7 @@ export enum NodeKind: u8 {
      * An integer literal.
      *
      * @example
-     * ```ts
+     * ```hx
      * 0xFF;
      * ```
      *
@@ -466,7 +466,7 @@ export enum NodeKind: u8 {
      * A floating-point literal.
      *
      * @example
-     * ```ts
+     * ```hx
      * 3.14;
      * ```
      *
@@ -479,7 +479,7 @@ export enum NodeKind: u8 {
      * A string literal.
      *
      * @example
-     * ```ts
+     * ```hx
      * "hello";
      * ```
      *
@@ -492,7 +492,7 @@ export enum NodeKind: u8 {
      * A character literal.
      *
      * @example
-     * ```ts
+     * ```hx
      * 'a';
      * ```
      *
@@ -505,7 +505,7 @@ export enum NodeKind: u8 {
      * The `true` literal.
      *
      * @example
-     * ```ts
+     * ```hx
      * const ready = true;
      * ```
      *
@@ -518,7 +518,7 @@ export enum NodeKind: u8 {
      * The `false` literal.
      *
      * @example
-     * ```ts
+     * ```hx
      * const ready = false;
      * ```
      *
@@ -531,7 +531,7 @@ export enum NodeKind: u8 {
      * The `null` literal, which is the empty value of an optional.
      *
      * @example
-     * ```ts
+     * ```hx
      * let user: ?User = null;
      * ```
      *
@@ -544,7 +544,7 @@ export enum NodeKind: u8 {
      * The `undefined` literal, which leaves memory uninitialized.
      *
      * @example
-     * ```ts
+     * ```hx
      * let buffer: u8[64] = undefined;
      * ```
      *
@@ -557,7 +557,7 @@ export enum NodeKind: u8 {
      * The `unreachable` literal, which marks code that never runs.
      *
      * @example
-     * ```ts
+     * ```hx
      * default: unreachable;
      * ```
      *
@@ -570,7 +570,7 @@ export enum NodeKind: u8 {
      * A template literal, with its text and interpolated values as children.
      *
      * @example
-     * ```ts
+     * ```hx
      * `hello ${name}!`
      * ```
      *
@@ -583,7 +583,7 @@ export enum NodeKind: u8 {
      * One literal text segment of a template literal.
      *
      * @example
-     * ```ts
+     * ```hx
      * `hello ${name}!`   // hello and !
      * ```
      *
@@ -596,7 +596,7 @@ export enum NodeKind: u8 {
      * An enum member written without its type, as a leading `.` and a name.
      *
      * @example
-     * ```ts
+     * ```hx
      * const role: Role = .Admin;
      * ```
      *
@@ -609,7 +609,7 @@ export enum NodeKind: u8 {
      * A call to a compiler builtin, whose name starts with `@`.
      *
      * @example
-     * ```ts
+     * ```hx
      * @sizeOf(Point);
      * ```
      *
@@ -622,7 +622,7 @@ export enum NodeKind: u8 {
      * An `import(...)` expression, which yields a module as a value.
      *
      * @example
-     * ```ts
+     * ```hx
      * const math = import("./math");
      * ```
      *
@@ -635,7 +635,7 @@ export enum NodeKind: u8 {
      * A function call.
      *
      * @example
-     * ```ts
+     * ```hx
      * add(1, 2);
      * ```
      *
@@ -648,7 +648,7 @@ export enum NodeKind: u8 {
      * An index into an array, a slice, or a pointer.
      *
      * @example
-     * ```ts
+     * ```hx
      * items[i];
      * ```
      *
@@ -664,7 +664,7 @@ export enum NodeKind: u8 {
      * Either bound may be left out, and `..=` makes the end inclusive.
      *
      * @example
-     * ```ts
+     * ```hx
      * items[1..3];
      * items[2..];
      * ```
@@ -678,7 +678,7 @@ export enum NodeKind: u8 {
      * A field or member access with `.`.
      *
      * @example
-     * ```ts
+     * ```hx
      * point.x;
      * ```
      *
@@ -691,7 +691,7 @@ export enum NodeKind: u8 {
      * A field access with `?.`, which yields `null` when the base is `null`.
      *
      * @example
-     * ```ts
+     * ```hx
      * user?.name;
      * ```
      *
@@ -704,7 +704,7 @@ export enum NodeKind: u8 {
      * A postfix `!` that unwraps an optional.
      *
      * @example
-     * ```ts
+     * ```hx
      * user!;
      * ```
      *
@@ -717,7 +717,7 @@ export enum NodeKind: u8 {
      * A generic name with explicit type arguments.
      *
      * @example
-     * ```ts
+     * ```hx
      * max<i64>(a, b);
      * ```
      *
@@ -730,7 +730,7 @@ export enum NodeKind: u8 {
      * A struct literal, with an optional type in front of the braces.
      *
      * @example
-     * ```ts
+     * ```hx
      * Point { x: 1, y: 2 };
      * const p: Point = { x, y };
      * ```
@@ -744,7 +744,7 @@ export enum NodeKind: u8 {
      * One field initializer inside a struct literal.
      *
      * @example
-     * ```ts
+     * ```hx
      * Point { x: 1, y }   // x: 1 and y
      * ```
      *
@@ -757,7 +757,7 @@ export enum NodeKind: u8 {
      * An array literal.
      *
      * @example
-     * ```ts
+     * ```hx
      * [1, 2, 3];
      * ```
      *
@@ -770,7 +770,7 @@ export enum NodeKind: u8 {
      * A unary `-`.
      *
      * @example
-     * ```ts
+     * ```hx
      * -x;
      * ```
      *
@@ -783,7 +783,7 @@ export enum NodeKind: u8 {
      * A logical `!`.
      *
      * @example
-     * ```ts
+     * ```hx
      * !done;
      * ```
      *
@@ -796,7 +796,7 @@ export enum NodeKind: u8 {
      * A bitwise `~`.
      *
      * @example
-     * ```ts
+     * ```hx
      * ~mask;
      * ```
      *
@@ -809,7 +809,7 @@ export enum NodeKind: u8 {
      * A unary `&`, which takes the address of its operand.
      *
      * @example
-     * ```ts
+     * ```hx
      * &point;
      * ```
      *
@@ -822,7 +822,7 @@ export enum NodeKind: u8 {
      * A unary `*`, which reads through a pointer.
      *
      * @example
-     * ```ts
+     * ```hx
      * *ptr;
      * ```
      *
@@ -835,7 +835,7 @@ export enum NodeKind: u8 {
      * A `try` expression, which returns the error of an error union to the caller.
      *
      * @example
-     * ```ts
+     * ```hx
      * const user = try find(id);
      * ```
      *
@@ -851,7 +851,7 @@ export enum NodeKind: u8 {
      * {@link NodeKind.ComptimeBlock} is the block form.
      *
      * @example
-     * ```ts
+     * ```hx
      * const size = comptime fib(10);
      * ```
      *
@@ -864,7 +864,7 @@ export enum NodeKind: u8 {
      * A `void` expression, which evaluates its operand and drops the result.
      *
      * @example
-     * ```ts
+     * ```hx
      * void advance(p);
      * ```
      *
@@ -877,7 +877,7 @@ export enum NodeKind: u8 {
      * A binary operation, with its operator held as a {@link BinOp}.
      *
      * @example
-     * ```ts
+     * ```hx
      * a + b;
      * ```
      *
@@ -893,7 +893,7 @@ export enum NodeKind: u8 {
      * It binds tighter than any binary operator, so `a * b as u64` reads as `a * (b as u64)`.
      *
      * @example
-     * ```ts
+     * ```hx
      * len as u64;
      * ```
      *
@@ -906,7 +906,7 @@ export enum NodeKind: u8 {
      * A conditional expression with `?` and `:`.
      *
      * @example
-     * ```ts
+     * ```hx
      * ok ? 1 : 0;
      * ```
      *
@@ -922,7 +922,7 @@ export enum NodeKind: u8 {
      * The body may be a block or an expression, and it may capture the error by name.
      *
      * @example
-     * ```ts
+     * ```hx
      * find(id) catch null;
      * find(id) catch (e) { log(e); return; }
      * ```
@@ -939,7 +939,7 @@ export enum NodeKind: u8 {
      * `..` leaves the end out, and `..=` takes it in.
      *
      * @example
-     * ```ts
+     * ```hx
      * for (const i of 0..n) {}
      * ```
      *
@@ -952,7 +952,7 @@ export enum NodeKind: u8 {
      * An arrow function expression.
      *
      * @example
-     * ```ts
+     * ```hx
      * const twice = (x: i32): i32 => x * 2;
      * ```
      *
@@ -965,7 +965,7 @@ export enum NodeKind: u8 {
      * A `switch`, in either its statement or its expression form.
      *
      * @example
-     * ```ts
+     * ```hx
      * switch (role) { case .Admin: grant(); default: deny(); }
      * ```
      *
@@ -978,7 +978,7 @@ export enum NodeKind: u8 {
      * One `case` of a switch, with its patterns, an optional guard, and its body.
      *
      * @example
-     * ```ts
+     * ```hx
      * case .Admin, .Owner: grant();
      * ```
      *
@@ -991,7 +991,7 @@ export enum NodeKind: u8 {
      * The `default` case of a switch.
      *
      * @example
-     * ```ts
+     * ```hx
      * default: deny();
      * ```
      *
@@ -1007,7 +1007,7 @@ export enum NodeKind: u8 {
      * A leading `*` binds a pointer to the value instead of a copy.
      *
      * @example
-     * ```ts
+     * ```hx
      * case .circle(r): area(r);
      * case .circle(*r): grow(r);
      * ```
@@ -1021,7 +1021,7 @@ export enum NodeKind: u8 {
      * A pattern that matches the fields of a struct.
      *
      * @example
-     * ```ts
+     * ```hx
      * case { x: 0, y }: onAxis(y);
      * ```
      *
@@ -1034,7 +1034,7 @@ export enum NodeKind: u8 {
      * One field inside a struct pattern, with an optional sub-pattern.
      *
      * @example
-     * ```ts
+     * ```hx
      * case { x: 0, y }: onAxis(y);   // x: 0 and y
      * ```
      *
@@ -1047,7 +1047,7 @@ export enum NodeKind: u8 {
      * A pattern that matches a union variant and its payload.
      *
      * @example
-     * ```ts
+     * ```hx
      * case .circle(r): area(r);
      * ```
      *
@@ -1060,7 +1060,7 @@ export enum NodeKind: u8 {
      * A pattern that matches one literal or enum value.
      *
      * @example
-     * ```ts
+     * ```hx
      * case 0: zero();
      * ```
      *
@@ -1076,7 +1076,7 @@ export enum NodeKind: u8 {
      * `..` leaves the end out, and `..=` takes it in.
      *
      * @example
-     * ```ts
+     * ```hx
      * case 'a'..='z': lower();
      * ```
      *
@@ -1089,7 +1089,7 @@ export enum NodeKind: u8 {
      * A block of statements in braces.
      *
      * @example
-     * ```ts
+     * ```hx
      * { const x = 1; use(x); }
      * ```
      *
@@ -1102,7 +1102,7 @@ export enum NodeKind: u8 {
      * An `unsafe` block, which permits operations that the checker cannot prove safe.
      *
      * @example
-     * ```ts
+     * ```hx
      * unsafe { ptr[i] = 0; }
      * ```
      *
@@ -1115,7 +1115,7 @@ export enum NodeKind: u8 {
      * An expression used as a statement.
      *
      * @example
-     * ```ts
+     * ```hx
      * log(message);
      * ```
      *
@@ -1131,7 +1131,7 @@ export enum NodeKind: u8 {
      * A plain `=` carries {@link BinOp.None}, and a compound form such as `+=` carries the operator it applies.
      *
      * @example
-     * ```ts
+     * ```hx
      * x = 1;
      * x += 1;
      * ```
@@ -1145,7 +1145,7 @@ export enum NodeKind: u8 {
      * A postfix `++` statement.
      *
      * @example
-     * ```ts
+     * ```hx
      * i++;
      * ```
      *
@@ -1158,7 +1158,7 @@ export enum NodeKind: u8 {
      * A postfix `--` statement.
      *
      * @example
-     * ```ts
+     * ```hx
      * i--;
      * ```
      *
@@ -1171,7 +1171,7 @@ export enum NodeKind: u8 {
      * A `return` statement.
      *
      * @example
-     * ```ts
+     * ```hx
      * return a + b;
      * ```
      *
@@ -1184,7 +1184,7 @@ export enum NodeKind: u8 {
      * A `throw` expression, which returns an error to the caller.
      *
      * @example
-     * ```ts
+     * ```hx
      * throw DbError.NotFound;
      * ```
      *
@@ -1197,7 +1197,7 @@ export enum NodeKind: u8 {
      * A `break` statement, with an optional label.
      *
      * @example
-     * ```ts
+     * ```hx
      * break outer;
      * ```
      *
@@ -1210,7 +1210,7 @@ export enum NodeKind: u8 {
      * A `continue` statement, with an optional label.
      *
      * @example
-     * ```ts
+     * ```hx
      * continue outer;
      * ```
      *
@@ -1223,7 +1223,7 @@ export enum NodeKind: u8 {
      * An `if` statement, which may capture an optional's value by name.
      *
      * @example
-     * ```ts
+     * ```hx
      * if (const user = find(id)) greet(user); else signUp();
      * ```
      *
@@ -1236,7 +1236,7 @@ export enum NodeKind: u8 {
      * A `while` loop, which may capture an optional's value by name.
      *
      * @example
-     * ```ts
+     * ```hx
      * while (const line = next()) print(line);
      * ```
      *
@@ -1249,7 +1249,7 @@ export enum NodeKind: u8 {
      * A C-style `for` loop with its initializer, condition, and step.
      *
      * @example
-     * ```ts
+     * ```hx
      * for (let i = 0; i < n; i++) {}
      * ```
      *
@@ -1262,7 +1262,7 @@ export enum NodeKind: u8 {
      * A `for-of` loop over a collection or a range, with an optional index name.
      *
      * @example
-     * ```ts
+     * ```hx
      * for (const item, i of items) {}
      * ```
      *
@@ -1275,7 +1275,7 @@ export enum NodeKind: u8 {
      * A `defer` statement, which runs when the enclosing scope exits.
      *
      * @example
-     * ```ts
+     * ```hx
      * defer free(buffer);
      * ```
      *
@@ -1288,7 +1288,7 @@ export enum NodeKind: u8 {
      * An `errdefer` statement, which runs only when the enclosing scope exits with an error.
      *
      * @example
-     * ```ts
+     * ```hx
      * errdefer free(buffer);
      * ```
      *
@@ -1301,7 +1301,7 @@ export enum NodeKind: u8 {
      * A `describe` block that groups tests, hooks, and fixtures.
      *
      * @example
-     * ```ts
+     * ```hx
      * describe("parser") { test("reads a number") {} }
      * ```
      *
@@ -1314,7 +1314,7 @@ export enum NodeKind: u8 {
      * A `test` with its name, body, and modifiers.
      *
      * @example
-     * ```ts
+     * ```hx
      * test("reads a number") { expect(parse("1")).toBe(1); }
      * test.todo("reads a float");
      * ```
@@ -1331,7 +1331,7 @@ export enum NodeKind: u8 {
      * The four hooks are `beforeAll`, `afterAll`, `beforeEach`, and `afterEach`.
      *
      * @example
-     * ```ts
+     * ```hx
      * beforeEach { reset(); }
      * ```
      *
@@ -1349,15 +1349,15 @@ export enum NodeKind: u8 {
  * Kinds that carry an operator print it directly, such as `.` for a field access and `++` for an increment.
  *
  * @example
- * ```ts
- * NODE_NAMES[NodeKind.Invalid];   // '<error>'
- * NODE_NAMES[NodeKind.ForOf];     // 'for-of'
+ * ```hx
+ * NodeNames[NodeKind.Invalid];   // '<error>'
+ * NodeNames[NodeKind.ForOf];     // 'for-of'
  * ```
  *
  * @since 1.0.0
  */
 
-export const NODE_NAMES: string[98] = [
+export const NodeNames: string[98] = [
     "none",
     "<error>",
     "file",
@@ -1463,12 +1463,12 @@ export const NODE_NAMES: string[98] = [
  *
  * @remarks
  * {@link NodeKind.Binary} and {@link NodeKind.Assign} store it in the 16-bit operator slot of their node.
- * The order matches {@link BINOP_SPELLINGS}, which holds the source text of each operator.
+ * The order matches {@link BinopSpellings}, which holds the source text of each operator.
  *
  * @example
- * ```ts
+ * ```hx
  * // x += 1 is an Assign node that carries BinOp.Add
- * BINOP_SPELLINGS[BinOp.Add]; // '+'
+ * BinopSpellings[BinOp.Add]; // '+'
  * ```
  *
  * @since 1.0.0
@@ -1482,7 +1482,7 @@ export enum BinOp: u16 {
      * Only {@link NodeKind.Assign} carries it, which is why its spelling is `=`.
      *
      * @example
-     * ```ts
+     * ```hx
      * x = 1;
      * ```
      *
@@ -1495,7 +1495,7 @@ export enum BinOp: u16 {
      * The `??` operator, which falls back to its right side when the left is `null`.
      *
      * @example
-     * ```ts
+     * ```hx
      * name ?? "guest";
      * ```
      *
@@ -1508,7 +1508,7 @@ export enum BinOp: u16 {
      * The logical `||` operator.
      *
      * @example
-     * ```ts
+     * ```hx
      * a || b;
      * ```
      *
@@ -1521,7 +1521,7 @@ export enum BinOp: u16 {
      * The logical `&&` operator.
      *
      * @example
-     * ```ts
+     * ```hx
      * a && b;
      * ```
      *
@@ -1534,7 +1534,7 @@ export enum BinOp: u16 {
      * The `==` comparison.
      *
      * @example
-     * ```ts
+     * ```hx
      * a == b;
      * ```
      *
@@ -1547,7 +1547,7 @@ export enum BinOp: u16 {
      * The `!=` comparison.
      *
      * @example
-     * ```ts
+     * ```hx
      * a != b;
      * ```
      *
@@ -1560,7 +1560,7 @@ export enum BinOp: u16 {
      * The `<` comparison.
      *
      * @example
-     * ```ts
+     * ```hx
      * a < b;
      * ```
      *
@@ -1573,7 +1573,7 @@ export enum BinOp: u16 {
      * The `<=` comparison.
      *
      * @example
-     * ```ts
+     * ```hx
      * a <= b;
      * ```
      *
@@ -1586,7 +1586,7 @@ export enum BinOp: u16 {
      * The `>` comparison.
      *
      * @example
-     * ```ts
+     * ```hx
      * a > b;
      * ```
      *
@@ -1599,7 +1599,7 @@ export enum BinOp: u16 {
      * The `>=` comparison.
      *
      * @example
-     * ```ts
+     * ```hx
      * a >= b;
      * ```
      *
@@ -1612,7 +1612,7 @@ export enum BinOp: u16 {
      * The bitwise `|` operator.
      *
      * @example
-     * ```ts
+     * ```hx
      * a | b;
      * ```
      *
@@ -1625,7 +1625,7 @@ export enum BinOp: u16 {
      * The bitwise `^` operator.
      *
      * @example
-     * ```ts
+     * ```hx
      * a ^ b;
      * ```
      *
@@ -1638,7 +1638,7 @@ export enum BinOp: u16 {
      * The bitwise `&` operator.
      *
      * @example
-     * ```ts
+     * ```hx
      * a & b;
      * ```
      *
@@ -1651,7 +1651,7 @@ export enum BinOp: u16 {
      * The `<<` shift.
      *
      * @example
-     * ```ts
+     * ```hx
      * a << 2;
      * ```
      *
@@ -1664,7 +1664,7 @@ export enum BinOp: u16 {
      * The `>>` shift.
      *
      * @example
-     * ```ts
+     * ```hx
      * a >> 2;
      * ```
      *
@@ -1677,7 +1677,7 @@ export enum BinOp: u16 {
      * The `+` operator.
      *
      * @example
-     * ```ts
+     * ```hx
      * a + b;
      * ```
      *
@@ -1690,7 +1690,7 @@ export enum BinOp: u16 {
      * The `-` operator.
      *
      * @example
-     * ```ts
+     * ```hx
      * a - b;
      * ```
      *
@@ -1703,7 +1703,7 @@ export enum BinOp: u16 {
      * The wrapping `+%` operator, which wraps around on overflow.
      *
      * @example
-     * ```ts
+     * ```hx
      * 255 as u8 +% 1;   // 0
      * ```
      *
@@ -1716,7 +1716,7 @@ export enum BinOp: u16 {
      * The wrapping `-%` operator, which wraps around on overflow.
      *
      * @example
-     * ```ts
+     * ```hx
      * 0 as u8 -% 1;   // 255
      * ```
      *
@@ -1729,7 +1729,7 @@ export enum BinOp: u16 {
      * The saturating `+|` operator, which stops at the largest value on overflow.
      *
      * @example
-     * ```ts
+     * ```hx
      * 250 as u8 +| 10;   // 255
      * ```
      *
@@ -1742,7 +1742,7 @@ export enum BinOp: u16 {
      * The saturating `-|` operator, which stops at the smallest value on overflow.
      *
      * @example
-     * ```ts
+     * ```hx
      * 5 as u8 -| 10;   // 0
      * ```
      *
@@ -1755,7 +1755,7 @@ export enum BinOp: u16 {
      * The `*` operator.
      *
      * @example
-     * ```ts
+     * ```hx
      * a * b;
      * ```
      *
@@ -1768,7 +1768,7 @@ export enum BinOp: u16 {
      * The `/` operator.
      *
      * @example
-     * ```ts
+     * ```hx
      * a / b;
      * ```
      *
@@ -1781,7 +1781,7 @@ export enum BinOp: u16 {
      * The `%` operator.
      *
      * @example
-     * ```ts
+     * ```hx
      * a % b;
      * ```
      *
@@ -1794,7 +1794,7 @@ export enum BinOp: u16 {
      * The wrapping `*%` operator, which wraps around on overflow.
      *
      * @example
-     * ```ts
+     * ```hx
      * 16 as u8 *% 16;   // 0
      * ```
      *
@@ -1807,7 +1807,7 @@ export enum BinOp: u16 {
      * The saturating `*|` operator, which stops at the largest value on overflow.
      *
      * @example
-     * ```ts
+     * ```hx
      * 16 as u8 *| 16;   // 255
      * ```
      *
@@ -1826,15 +1826,15 @@ export enum BinOp: u16 {
  * A compound assignment appends `=` to the spelling of its operator.
  *
  * @example
- * ```ts
- * BINOP_SPELLINGS[BinOp.Coalesce]; // '??'
- * BINOP_SPELLINGS[BinOp.AddSat];   // '+|'
+ * ```hx
+ * BinopSpellings[BinOp.Coalesce]; // '??'
+ * BinopSpellings[BinOp.AddSat];   // '+|'
  * ```
  *
  * @since 1.0.0
  */
 
-export const BINOP_SPELLINGS: string[26] = [
+export const BinopSpellings: string[26] = [
     "=",
     "??",
     "||",
@@ -1870,105 +1870,105 @@ export const BINOP_SPELLINGS: string[26] = [
  * An `Import` node carries it for a re-export written as `export ... from`.
  *
  * @example
- * ```ts
- * (node.flags & FLAG_EXPORT) != 0; // true for export const limit = 10;
+ * ```hx
+ * (node.flags & FlagExport) != 0; // true for export const limit = 10;
  * ```
  *
  * @since 1.0.0
  */
 
-export const FLAG_EXPORT: u8 = 0x01;
+export const FlagExport: u8 = 0x01;
 
 /**
  * The flag of a declaration marked with `extern`.
  *
  * @example
- * ```ts
- * (node.flags & FLAG_EXTERN) != 0; // true for extern "C" function free(ptr: ?u8[*]): void;
+ * ```hx
+ * (node.flags & FlagExtern) != 0; // true for extern "C" function free(ptr: ?u8[*]): void;
  * ```
  *
  * @since 1.0.0
  */
 
-export const FLAG_EXTERN: u8 = 0x02;
+export const FlagExtern: u8 = 0x02;
 
 /**
  * The flag of an `Import` node that imports a whole module as a namespace.
  *
  * @example
- * ```ts
- * (node.flags & FLAG_NAMESPACE) != 0; // true for import * as fmt from "std/fmt";
+ * ```hx
+ * (node.flags & FlagNamespace) != 0; // true for import * as fmt from "std/fmt";
  * ```
  *
  * @since 1.0.0
  */
 
-export const FLAG_NAMESPACE: u8 = 0x04;
+export const FlagNamespace: u8 = 0x04;
 
 /**
  * The flag of a `Function` node whose parameter list ends with `...`.
  *
  * @example
- * ```ts
- * (node.flags & FLAG_VARIADIC) != 0; // true for extern "C" function printf(f: readonly u8[*], ...): i32;
+ * ```hx
+ * (node.flags & FlagVariadic) != 0; // true for extern "C" function printf(f: readonly u8[*], ...): i32;
  * ```
  *
  * @since 1.0.0
  */
 
-export const FLAG_VARIADIC: u8 = 0x08;
+export const FlagVariadic: u8 = 0x08;
 
 /**
  * The flag of a `Param` node marked with `comptime`.
  *
  * @example
- * ```ts
- * (node.flags & FLAG_COMPTIME) != 0; // true for the T in function make(comptime T: type): T
+ * ```hx
+ * (node.flags & FlagComptime) != 0; // true for the T in function make(comptime T: type): T
  * ```
  *
  * @since 1.0.0
  */
 
-export const FLAG_COMPTIME: u8 = 0x10;
+export const FlagComptime: u8 = 0x10;
 
 /**
  * The flag of a `Range`, `Slice`, or `PatternRange` node written with `..=`, which takes the end in.
  *
  * @example
- * ```ts
- * (node.flags & FLAG_INCLUSIVE) != 0; // true for 0..=9
+ * ```hx
+ * (node.flags & FlagInclusive) != 0; // true for 0..=9
  * ```
  *
  * @since 1.0.0
  */
 
-export const FLAG_INCLUSIVE: u8 = 0x20;
+export const FlagInclusive: u8 = 0x20;
 
 /**
  * The flag of a `Switch` node in its expression form.
  *
  * @example
- * ```ts
- * (node.flags & FLAG_EXPR) != 0; // true for const n = switch (x) { default: 0; };
+ * ```hx
+ * (node.flags & FlagExpr) != 0; // true for const n = switch (x) { default: 0; };
  * ```
  *
  * @since 1.0.0
  */
 
-export const FLAG_EXPR: u8 = 0x40;
+export const FlagExpr: u8 = 0x40;
 
 /**
  * The flag of a `PatternBind` node written with a leading `*`, which binds a pointer to the value.
  *
  * @example
- * ```ts
- * (node.flags & FLAG_POINTER) != 0; // true for case .circle(*r):
+ * ```hx
+ * (node.flags & FlagPointer) != 0; // true for case .circle(*r):
  * ```
  *
  * @since 1.0.0
  */
 
-export const FLAG_POINTER: u8 = 0x80;
+export const FlagPointer: u8 = 0x80;
 
 /**
  * The token index that marks an absent token.
@@ -1977,14 +1977,14 @@ export const FLAG_POINTER: u8 = 0x80;
  * A node field that holds a token, such as the alias of an import, holds this when the source has none.
  *
  * @example
- * ```ts
- * data.alias_token == NO_TOKEN; // true for import { a } from "./a";
+ * ```hx
+ * data.aliasToken == NoToken; // true for import { a } from "./a";
  * ```
  *
  * @since 1.0.0
  */
 
-export const NO_TOKEN: u32 = 0xFFFF_FFFF;
+export const NoToken: u32 = 0xFFFF_FFFF;
 
 /**
  * The mode of a test or a describe block without a modifier.
@@ -1993,14 +1993,14 @@ export const NO_TOKEN: u32 = 0xFFFF_FFFF;
  * A `Test` or `Describe` node keeps its mode in its operator field.
  *
  * @example
- * ```ts
+ * ```hx
  * test("reads a number") {}
  * ```
  *
  * @since 1.0.0
  */
 
-export const TEST_PLAIN: u16 = 0;
+export const TestPlain: u16 = 0;
 
 /**
  * The mode of a test or a describe block marked `.skip`, which does not run.
@@ -2009,14 +2009,14 @@ export const TEST_PLAIN: u16 = 0;
  * A `Test` or `Describe` node keeps its mode in its operator field.
  *
  * @example
- * ```ts
+ * ```hx
  * test.skip("reads a float") {}
  * ```
  *
  * @since 1.0.0
  */
 
-export const TEST_SKIP: u16 = 1;
+export const TestSkip: u16 = 1;
 
 /**
  * The mode of a test or a describe block marked `.only`, which runs alone with the others marked the same way.
@@ -2025,14 +2025,14 @@ export const TEST_SKIP: u16 = 1;
  * A `Test` or `Describe` node keeps its mode in its operator field.
  *
  * @example
- * ```ts
+ * ```hx
  * describe.only("parser") {}
  * ```
  *
  * @since 1.0.0
  */
 
-export const TEST_ONLY: u16 = 2;
+export const TestOnly: u16 = 2;
 
 /**
  * The mode of a test marked `.todo`, which has no body yet.
@@ -2041,14 +2041,14 @@ export const TEST_ONLY: u16 = 2;
  * A `Test` or `Describe` node keeps its mode in its operator field.
  *
  * @example
- * ```ts
+ * ```hx
  * test.todo("reads a float");
  * ```
  *
  * @since 1.0.0
  */
 
-export const TEST_TODO: u16 = 3;
+export const TestTodo: u16 = 3;
 
 /**
  * The mode of a test marked `.failing`, which passes only when its body fails.
@@ -2057,14 +2057,14 @@ export const TEST_TODO: u16 = 3;
  * A `Test` or `Describe` node keeps its mode in its operator field.
  *
  * @example
- * ```ts
+ * ```hx
  * test.failing("rejects a bad number") {}
  * ```
  *
  * @since 1.0.0
  */
 
-export const TEST_FAILING: u16 = 4;
+export const TestFailing: u16 = 4;
 
 /**
  * The mode of a test marked `.panics`, which passes only when it panics with the given message.
@@ -2073,37 +2073,37 @@ export const TEST_FAILING: u16 = 4;
  * A `Test` or `Describe` node keeps its mode in its operator field.
  *
  * @example
- * ```ts
+ * ```hx
  * test.panics("stops", "index out of bounds") {}
  * ```
  *
  * @since 1.0.0
  */
 
-export const TEST_PANICS: u16 = 5;
+export const TestPanics: u16 = 5;
 
 /**
  * The modifier that the AST printer shows for each test mode, indexed by the mode.
  *
  * @example
- * ```ts
- * TEST_MODE_LABELS[TEST_SKIP]; // ' :skip'
+ * ```hx
+ * TestModeLabels[TestSkip]; // ' :skip'
  * ```
  *
  * @since 1.0.0
  */
 
-export const TEST_MODE_LABELS: string[6] = ["", " :skip", " :only", " :todo", " :failing", " :panics"];
+export const TestModeLabels: string[6] = ["", " :skip", " :only", " :todo", " :failing", " :panics"];
 
 /**
  * The name of each hook, indexed by the value that a `Hook` node keeps in its operator field.
  *
  * @example
- * ```ts
- * HOOK_NAMES[node.op as usize]; // 'beforeEach' for beforeEach { reset(); }
+ * ```hx
+ * HookNames[node.op as usize]; // 'beforeEach' for beforeEach { reset(); }
  * ```
  *
  * @since 1.0.0
  */
 
-export const HOOK_NAMES: string[4] = ["beforeAll", "afterAll", "beforeEach", "afterEach"];
+export const HookNames: string[4] = ["beforeAll", "afterAll", "beforeEach", "afterEach"];

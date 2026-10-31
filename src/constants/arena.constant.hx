@@ -5,11 +5,11 @@
  * A request larger than this, alignment included, gets a chunk of its own sized to fit.
  *
  * @example
- * ```ts
- * CHUNK_SIZE; // 65536
+ * ```hx
+ * ChunkSize; // 65536
  * ```
  *
- * @see hx_arena_alloc
+ * @see hxArenaAlloc
  * @since 1.0.0
  */
 
@@ -23,12 +23,12 @@ export const CHUNK_SIZE: usize = 64 * 1024;
  * It is rounded up to 32 so that the data after it starts 16-byte aligned.
  *
  * @example
- * ```ts
- * HEADER; // 32
+ * ```hx
+ * Header; // 32
  * ```
  *
  * @see Chunk
  * @since 1.0.0
  */
 
-export const HEADER: usize = 32;
+export const Header: usize = 32;
