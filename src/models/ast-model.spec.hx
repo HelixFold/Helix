@@ -11,9 +11,9 @@ import { HxDiagList } from "@models/structs/diagnostic-model.struct";
 import { hx_lex, hx_tokens_free } from "@modules/lexer/lexer.module";
 import { HxTokens } from "@modules/lexer/structs/lexer-module.struct";
 import { hx_source_from_string, hx_source_free } from "@models/source.model";
-import { hx_ast_record, record, node, extraAt, tokenText } from "@models/ast.model";
+import { hx_binop_spelling, hx_ast_init, hx_ast_free } from "@models/ast.model";
 import { HxAst, HxNode, HxRange, HxSliceData } from "@models/structs/ast-model.struct";
-import { hx_node_kind_name, hx_binop_spelling, hx_ast_init, hx_ast_free } from "@models/ast.model";
+import { hx_ast_record, record, node, extraAt, tokenText, hx_node_kind_name } from "@models/ast.model";
 
 /**
  * Tests
