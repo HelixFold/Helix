@@ -1639,6 +1639,114 @@ function runtimeObject(target: Target, name: string): ?string {
 }
 
 /**
+ * Returns the platform name of a target, as the folders of the toolchain's LLVM are named.
+ *
+ * @param target - The target of the build
+ * @returns A name such as `x86_64-linux` or `aarch64-macos`, or an empty string for a target without one
+ *
+ * @remarks
+ * The architecture comes from the triple, with `arm64` spelled `aarch64`,
+ * and the system is `macos`, `linux`, or `windows`, the same names a release of Helix uses.
+ *
+ * @example
+ * ```hx
+ * platformOf(parseTarget("x86_64-linux")!); // "x86_64-linux"
+ * platformOf(parseTarget(null)!);           // "aarch64-macos" on an Apple-silicon Mac
+ * ```
+ *
+ * @since 1.0.0
+ */
+
+export function platformOf(target: Target): string {
+    let arch = target.triple[0..os.firstIndex(target.triple, '-') ?? target.triple.len];
+    if (equal(arch, "arm64")) arch = "aarch64";
+    const system = target.apple ? "macos" : target.musl ? "linux" : target.windows ? "windows" : "";
+    if (system.len == 0) return "";
+    return allocCString(`${arch}-${system}`);
+}
+
+/**
+ * Finds the static LLVM that the Helix toolchain ships for a target.
+ *
+ * @param target - The target of the build
+ * @returns The folder that holds the archives, or `null` when the toolchain has none for the target
+ *
+ * @remarks
+ * A release keeps it in `lib/llvm/<platform>/lib` next to the compiler.
+ * A toolchain installed by hand can keep it in `$HELIX_HOME/llvm/<platform>/lib` instead.
+ * The folder holds LLVM's and libclang's archives, the C++ runtime they need for the target,
+ * and the objects that a C++ program links in, such as the one that defines `__dso_handle`.
+ *
+ * @example
+ * ```hx
+ * toolchainLlvmDir(parseTarget("x86_64-linux")!); // "/opt/helix/lib/llvm/x86_64-linux/lib"
+ * ```
+ *
+ * @see platformOf
+ * @since 1.0.0
+ */
+
+export function toolchainLlvmDir(target: Target): ?string {
+    const platform = platformOf(target);
+    if (platform.len == 0) return null;
+    if (const shipped = os.besideCompiler(allocCString(`lib/llvm/${platform}/lib/libLLVMCore.a`))) {
+        if (const slash = os.lastIndex(shipped, '/')) return shipped[0..slash];
+    }
+    const home = allocCString(`${os.helixHome("llvm")}/${platform}/lib`);
+    if (os.readable(allocCString(`${home}/libLLVMCore.a`))) return home;
+    return null;
+}
+
+/**
+ * Checks whether a link asks for LLVM or libclang.
+ *
+ * @param link - One `--link` file or `-l` library of the program
+ * @returns `true` for `-lLLVM...` and `-lclang`
+ *
+ * @remarks
+ * The compiler declares both in its helix.jsonc, and they come from the toolchain rather than from the system.
+ *
+ * @since 1.0.0
+ */
+
+function isLlvmLink(link: string): bool {
+    return startsWith(link, "-lLLVM") || equal(link, "-lclang");
+}
+
+/**
+ * Adds the toolchain's static LLVM for a target to a linker command line, when the program links LLVM or libclang.
+ *
+ * @param args - The linker command line to extend
+ * @param links - The `--link` files and `-l` libraries of the program
+ * @param target - The target of the build
+ * @param group - Whether to wrap the archives in `--start-group` and `--end-group`, which an ELF linker needs
+ * @returns `true` when the archives went in, so the caller leaves out the `-l` names they replace
+ *
+ * @remarks
+ * Every archive and object in {@link toolchainLlvmDir} goes in.
+ * The archives depend on each other in no fixed order, so an ELF link takes them as one group.
+ *
+ * @see toolchainLlvmDir
+ * @since 1.0.0
+ */
+
+function addToolchainLlvm(args: *Strings, links: readonly *Strings, target: Target, group: bool): bool {
+    let wanted = false;
+    for (const link of links.items) wanted = wanted || isLlvmLink(link);
+    if (!wanted) return false;
+    const dir = toolchainLlvmDir(target);
+    if (dir == null) return false;
+    const names = os.listDir(dir);
+    if (names == null) return false;
+    if (group) add(args, "--start-group");
+    for (const name of names.items) {
+        if (endsWith(name, ".a") || endsWith(name, ".o")) add(args, allocCString(`${dir}/${name}`));
+    }
+    if (group) add(args, "--end-group");
+    return true;
+}
+
+/**
  * Checks that every `-l<name>` exists for the target, not only on this machine.
  *
  * @param options - The options with the link list
@@ -1654,8 +1762,10 @@ function runtimeObject(target: Target, name: string): ?string {
  */
 
 function targetLibrariesExist(options: readonly *Options, target: Target, libc: string): bool {
+    const toolchainLlvm = toolchainLlvmDir(target) != null;
     for (const link of options.links.items) {
         if (!startsWith(link, "-l")) continue;
+        if (toolchainLlvm && isLlvmLink(link)) continue;
         if (os.readable(allocCString(`${libc}/lib/lib${link[2..]}.a`))) continue;
         eprintln(`error: there's no ${link[2..]} library for ${target.triple}`);
         eprintln("  = hint: a system library of this machine can't be linked into a program for another one; build it from");
@@ -1776,7 +1886,10 @@ function linkMusl(options: readonly *Options, target: Target, object: string, ou
     add(&args, runtime);
     if (options.test) add(&args, testRuntime);
     add(&args, allocCString(`-L${libc}/lib`));
-    for (const link of options.links.items) add(&args, link);
+    const llvmLinked = addToolchainLlvm(&args, &options.links, target, true);
+    for (const link of options.links.items) {
+        if (!(llvmLinked && isLlvmLink(link))) add(&args, link);
+    }
     add(&args, "--start-group");
     add(&args, allocCString(`${libc}/lib/libc.a`));
     add(&args, allocCString(`${libc}/lib/libcompiler_rt.a`));
@@ -2299,8 +2412,12 @@ function linkMacos(options: readonly *Options, target: Target, object: string, o
     add(&args, object);
     add(&args, runtime);
     if (options.test) add(&args, testRuntime);
-    addLlvmLibraryDir(&args, &options.links);
-    for (const link of options.links.items) add(&args, link);
+    const llvmLinked = addToolchainLlvm(&args, &options.links, target, false);
+    if (llvmLinked) add(&args, "-lc++");
+    else addLlvmLibraryDir(&args, &options.links);
+    for (const link of options.links.items) {
+        if (!(llvmLinked && isLlvmLink(link))) add(&args, link);
+    }
     add(&args, "-lSystem");
     if (const resources = clangResourceDir()) {
         const builtins = allocCString(`${resources}/lib/darwin/libclang_rt.osx.a`);
