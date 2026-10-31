@@ -11,6 +11,11 @@ import { HxSha256 } from "@services/structs/sha256-service.struct";
  * @param x - The word to rotate
  * @param n - The number of bits to rotate by, from 1 to 31
  * @returns The rotated word
+ *
+ * @remarks
+ * A count of 0 or 32 would shift by 32 bits, so callers pass only the fixed counts that SHA-256 uses.
+ *
+ * @since 1.0.0
  */
 
 function rotr(x: u32, n: u32): u32 {
@@ -24,6 +29,8 @@ function rotr(x: u32, n: u32): u32 {
  *
  * @remarks
  * The result is added into the working words, and the block is left for the caller to reset.
+ *
+ * @since 1.0.0
  */
 
 function compress(s: *HxSha256): void {
@@ -73,19 +80,19 @@ function compress(s: *HxSha256): void {
  * @param s - The state to reset, whose previous contents are ignored
  *
  * @remarks
- * Call it before the first {@link hx_sha256_update}, and again to reuse a state for another digest.
+ * Call it before the first {@link hxSha256Update}, and again to reuse a state for another digest.
  *
  * @example
- * ```ts
+ * ```hx
  * let s: HxSha256 = undefined;
- * hx_sha256_init(&s);
+ * hxSha256Init(&s);
  * s.length; // 0
  * ```
  *
  * @since 1.0.0
  */
 
-export extern "C" function hx_sha256_init(s: *HxSha256): void {
+export extern "C" function hxSha256Init(s: *HxSha256): void {
     s.state = INITIAL;
     s.length = 0;
     s.used = 0;
@@ -96,6 +103,12 @@ export extern "C" function hx_sha256_init(s: *HxSha256): void {
  *
  * @param s - The digest state
  * @param bytes - The bytes to feed
+ *
+ * @remarks
+ * It copies as much as fits into the 64-byte block, compresses a full block, and repeats until the input runs out.
+ * A partial block stays buffered for the next call or for the padding in {@link hxSha256Finish}.
+ *
+ * @since 1.0.0
  */
 
 function feed(s: *HxSha256, bytes: readonly u8[]): void {
@@ -125,15 +138,15 @@ function feed(s: *HxSha256, bytes: readonly u8[]): void {
  * Splitting the input across many calls gives the same digest as passing it in one.
  *
  * @example
- * ```ts
- * hx_sha256_update(&s, "ab", 2);
- * hx_sha256_update(&s, "c", 1); // the same digest as 'abc' in one call
+ * ```hx
+ * hxSha256Update(&s, "ab", 2);
+ * hxSha256Update(&s, "c", 1); // the same digest as 'abc' in one call
  * ```
  *
  * @since 1.0.0
  */
 
-export extern "C" function hx_sha256_update(s: *HxSha256, data: readonly u8[*], len: usize): void {
+export extern "C" function hxSha256Update(s: *HxSha256, data: readonly u8[*], len: usize): void {
     if (len == 0) return;
     unsafe {
         feed(s, data[0..len]);
@@ -147,19 +160,19 @@ export extern "C" function hx_sha256_update(s: *HxSha256, data: readonly u8[*], 
  * @param out - The 32 bytes that receive the digest
  *
  * @remarks
- * The state is spent afterwards, so call {@link hx_sha256_init} before using it for another digest.
+ * The state is spent afterwards, so call {@link hxSha256Init} before using it for another digest.
  *
  * @example
- * ```ts
+ * ```hx
  * let digest: u8[32] = undefined;
- * hx_sha256_finish(&s, &digest); // digest[0]: 0xba for 'abc'
+ * hxSha256Finish(&s, &digest); // digest[0]: 0xba for 'abc'
  * ```
  *
- * @see hx_sha256_hex
+ * @see hxSha256Hex
  * @since 1.0.0
  */
 
-export extern "C" function hx_sha256_finish(s: *HxSha256, out: u8[*]): void {
+export extern "C" function hxSha256Finish(s: *HxSha256, out: u8[*]): void {
     const bits = s.length *% 8;
     feed(s, [0x80]);
     while (s.used != 56) feed(s, [0]);
@@ -184,17 +197,21 @@ export extern "C" function hx_sha256_finish(s: *HxSha256, out: u8[*]): void {
  * @param digest - The 32 bytes of the digest
  * @param out - The 65 bytes that receive the text
  *
+ * @remarks
+ * The output ends with a NUL, so C code can print it directly.
+ * It reads exactly 32 bytes and writes exactly 65, and it does not check either length.
+ *
  * @example
- * ```ts
+ * ```hx
  * let hex: u8[65] = undefined;
- * hx_sha256_hex(&digest, &hex); // 'ba7816bf...f20015ad' for 'abc'
+ * hxSha256Hex(&digest, &hex); // 'ba7816bf...f20015ad' for 'abc'
  * ```
  *
- * @see hx_sha256_finish
+ * @see hxSha256Finish
  * @since 1.0.0
  */
 
-export extern "C" function hx_sha256_hex(digest: readonly u8[*], out: u8[*]): void {
+export extern "C" function hxSha256Hex(digest: readonly u8[*], out: u8[*]): void {
     const digits = "0123456789abcdef";
     let bytes: readonly u8[] = [];
     let text: u8[] = [];
