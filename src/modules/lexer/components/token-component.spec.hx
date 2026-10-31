@@ -4,8 +4,8 @@
 
 import { strlen } from "std/c";
 import { TokenKind } from "@modules/lexer/constants/token.constant";
-import { hx_token_name, hx_token_spelling, keyword } from "@modules/lexer/components/token.component";
-import { hx_keyword_lookup, isKeyword, isContextual, spelling } from "@modules/lexer/components/token.component";
+import { isKeyword, isContextual, spelling } from "@modules/lexer/components/token.component";
+import { hxTokenName, hxTokenSpelling, keyword, hxKeywordLookup } from "@modules/lexer/components/token.component";
 
 /**
  * Tests
@@ -13,6 +13,14 @@ import { hx_keyword_lookup, isKeyword, isContextual, spelling } from "@modules/l
 
 /**
  * A NUL-terminated string as a slice.
+ *
+ * @param text - Pointer to the first byte of a NUL-terminated string
+ * @returns A slice over the bytes before the terminator
+ *
+ * @remarks
+ * The slice borrows the original bytes rather than copying them, so it lives only as long as they do.
+ *
+ * @since 1.0.0
  */
 
 function cString(text: readonly u8[*]): string {
@@ -21,26 +29,26 @@ function cString(text: readonly u8[*]): string {
     }
 }
 
-describe("hx_token_name") {
+describe("hxTokenName") {
     test("should return the name of a kind without its prefix") {
-        expect(cString(hx_token_name(TokenKind.KwConst as u32))).toBe("KW_CONST");
-        expect(cString(hx_token_name(TokenKind.DotDotEq as u32))).toBe("DOT_DOT_EQ");
-        expect(cString(hx_token_name(TokenKind.Eof as u32))).toBe("EOF");
+        expect(cString(hxTokenName(TokenKind.KwConst as u32))).toBe("KW_CONST");
+        expect(cString(hxTokenName(TokenKind.DotDotEq as u32))).toBe("DOT_DOT_EQ");
+        expect(cString(hxTokenName(TokenKind.Eof as u32))).toBe("EOF");
     }
 
     test("should return a question mark for a number that names no kind") {
-        expect(cString(hx_token_name(500))).toBe("?");
+        expect(cString(hxTokenName(500))).toBe("?");
     }
 }
 
-describe("hx_token_spelling") {
+describe("hxTokenSpelling") {
     test("should return the source spelling of a kind") {
-        expect(cString(hx_token_spelling(TokenKind.Arrow as u32))).toBe("=>");
-        expect(cString(hx_token_spelling(TokenKind.KwWhile as u32))).toBe("while");
+        expect(cString(hxTokenSpelling(TokenKind.Arrow as u32))).toBe("=>");
+        expect(cString(hxTokenSpelling(TokenKind.KwWhile as u32))).toBe("while");
     }
 
     test("should return a question mark for a number that names no kind") {
-        expect(cString(hx_token_spelling(500))).toBe("?");
+        expect(cString(hxTokenSpelling(500))).toBe("?");
     }
 }
 
@@ -58,20 +66,20 @@ describe("keyword") {
 
     test("should spell every keyword back to itself") {
         for (const k of (TokenKind.KwAs as u32)..(TokenKind.KwWhile as u32) + 1) {
-            expect(keyword(cString(hx_token_spelling(k))) as u32).toBe(k);
+            expect(keyword(cString(hxTokenSpelling(k))) as u32).toBe(k);
         }
     }
 }
 
-describe("hx_keyword_lookup") {
+describe("hxKeywordLookup") {
     test("should look up a keyword from a pointer and a length") {
-        expect(hx_keyword_lookup("while", 5)).toBe(TokenKind.KwWhile as u32);
-        expect(hx_keyword_lookup("whiled", 5)).toBe(TokenKind.KwWhile as u32);
+        expect(hxKeywordLookup("while", 5)).toBe(TokenKind.KwWhile as u32);
+        expect(hxKeywordLookup("whiled", 5)).toBe(TokenKind.KwWhile as u32);
     }
 
     test("should skip the lookup for words too short or too long to be keywords") {
-        expect(hx_keyword_lookup("x", 1)).toBe(TokenKind.Ident as u32);
-        expect(hx_keyword_lookup("unreachables", 12)).toBe(TokenKind.Ident as u32);
+        expect(hxKeywordLookup("x", 1)).toBe(TokenKind.Ident as u32);
+        expect(hxKeywordLookup("unreachables", 12)).toBe(TokenKind.Ident as u32);
     }
 }
 
