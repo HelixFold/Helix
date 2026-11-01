@@ -3,7 +3,7 @@
  */
 
 import * as c from "./c";
-import { Allocator, alloc, cAllocator } from "./heap";
+import { Allocator, alloc, cAllocator, free } from "./heap";
 
 /**
  * The running program as `main(init: Init)` receives it: its arguments and its environment.
@@ -111,7 +111,8 @@ export struct Env {
  * The errors of starting another program.
  *
  * @remarks
- * {@link run} and {@link capture} throw it, and the runtime prints the reason on stderr first.
+ * {@link run}, {@link capture}, {@link captureAll}, and {@link captureAllWith} throw it,
+ * and the runtime prints the reason on stderr first.
  *
  * @example
  * ```hx
@@ -189,10 +190,24 @@ extern "C" function hx_process_run(argv: readonly string[*], count: usize): i64;
 extern "C" function hx_process_capture(argv: readonly string[*], count: usize, out: *?u8[*], len: *usize): i64;
 
 /**
- * What {@link capture} got from a program.
+ * Runs a program with its stdout and its stderr captured into memory from `malloc`.
  *
  * @remarks
- * The caller owns the bytes and gives them back to the allocator that it passed to {@link capture}.
+ * The runtime in `lib/rt/runtime.c` implements it, reading both pipes as they fill.
+ * It starts the program in `dir` when `dirLen` is not 0,
+ * and kills it once `timeout` milliseconds pass when that is above 0.
+ * It sets `out` and `err` to the captured bytes, which the caller frees, and returns what `hx_process_run` returns.
+ *
+ * @since 1.0.0
+ */
+
+extern "C" function hx_process_capture_all(argv: readonly string[*], count: usize, dir: readonly u8[*], dirLen: usize, timeout: i64, out: *?u8[*], outLen: *usize, err: *?u8[*], errLen: *usize): i64;
+
+/**
+ * What {@link capture} or {@link captureAll} got from a program.
+ *
+ * @remarks
+ * The caller owns the bytes and gives them back to the allocator that it passed.
  *
  * @example
  * ```hx
@@ -219,7 +234,7 @@ export struct Output {
     status: u8,
 
     /**
-     * Everything that the program wrote to stdout, in memory from the allocator passed to {@link capture}.
+     * Everything that the program wrote to stdout, in memory from the allocator passed to the capture.
      *
      * @example
      * ```hx
@@ -230,6 +245,22 @@ export struct Output {
      */
 
     stdout: u8[],
+
+    /**
+     * Everything that the program wrote to stderr, in memory from the allocator passed to {@link captureAll}.
+     *
+     * @remarks
+     * It is empty after {@link capture}, which leaves the stderr of the program on the stderr of this program.
+     *
+     * @example
+     * ```hx
+     * out.stderr; // the bytes of "error: no such file\n"
+     * ```
+     *
+     * @since 1.0.0
+     */
+
+    stderr: u8[],
 }
 
 /**
@@ -261,13 +292,152 @@ export function capture(a: dyn Allocator, argv: readonly string[]): Output | Err
     const status = hx_process_capture(argv.ptr, argv.len, &raw, &len);
     defer c.free(raw);
     if (status < 0) throw ProcessError.CannotStart;
+    return Output { status: status as u8, stdout: try copyBytes(a, raw, len), stderr: [] };
+}
+
+/**
+ * How {@link captureAllWith} starts a program and how long it lets it run.
+ *
+ * @remarks
+ * Both fields have defaults, so `CaptureOptions {}` runs the program as {@link captureAll} does.
+ *
+ * @example
+ * ```hx
+ * const options = CaptureOptions { dir: "build", timeout: 3000 };
+ * options.timeout; // 3000
+ * ```
+ *
+ * @since 1.0.0
+ */
+
+export struct CaptureOptions {
+    /**
+     * The folder that the program starts in, or an empty text for the folder of this program.
+     *
+     * @remarks
+     * A relative path in the command line, the program's included, is found from this folder.
+     *
+     * @example
+     * ```hx
+     * CaptureOptions { dir: "/tmp" }; // the program runs in /tmp
+     * ```
+     *
+     * @since 1.0.0
+     */
+
+    dir: string = "",
+
+    /**
+     * The milliseconds that the program may run before it is killed, or 0 for no limit.
+     *
+     * @remarks
+     * A killed program ends with status 137, which is 128 plus the number of the signal that kills it,
+     * and the output keeps what it wrote before then.
+     * Reach for it with a program that may never end on its own, such as an emulator that boots a board.
+     *
+     * @example
+     * ```hx
+     * CaptureOptions { timeout: 3000 }; // the program is killed after 3 seconds
+     * ```
+     *
+     * @since 1.0.0
+     */
+
+    timeout: u32 = 0,
+}
+
+/**
+ * Runs a program like {@link run} and captures both its stdout and its stderr into memory.
+ *
+ * @param a - The allocator for the captured bytes
+ * @param argv - The command line, whose first word is the program
+ * @returns The exit status and the bytes of both streams, or the error that stopped it
+ * @throws ProcessError.CannotStart when the program cannot start
+ *
+ * @remarks
+ * Reach for it over {@link capture} when the program reports on stderr, as a compiler does with its errors.
+ * The two streams stay apart, so the order between a line on stdout and one on stderr is lost.
+ * The caller frees both slices with `a`.
+ *
+ * @example
+ * ```hx
+ * const out = try captureAll(a, ["sh", "-c", "echo out; echo err >&2; exit 1"]);
+ * out.status; // 1
+ * out.stdout; // the bytes of "out\n"
+ * out.stderr; // the bytes of "err\n"
+ * ```
+ *
+ * @see captureAllWith
+ * @since 1.0.0
+ */
+
+export function captureAll(a: dyn Allocator, argv: readonly string[]): Output | Error {
+    return try captureAllWith(a, argv, CaptureOptions {});
+}
+
+/**
+ * Runs a program like {@link captureAll}, in a given folder and with a time limit.
+ *
+ * @param a - The allocator for the captured bytes
+ * @param argv - The command line, whose first word is the program
+ * @param options - The folder that the program starts in and the milliseconds that it may run
+ * @returns The exit status and the bytes of both streams, or the error that stopped it
+ * @throws ProcessError.CannotStart when the program cannot start
+ *
+ * @remarks
+ * This program stays in its own folder, so its relative paths keep their meaning while the other program runs.
+ * The caller frees both slices with `a`.
+ *
+ * @example
+ * ```hx
+ * const out = try captureAllWith(a, ["pwd"], CaptureOptions { dir: "/tmp" });
+ * out.stdout; // the bytes of "/tmp\n"
+ * const slow = try captureAllWith(a, ["sleep", "10"], CaptureOptions { timeout: 100 });
+ * slow.status; // 137
+ * ```
+ *
+ * @see CaptureOptions
+ * @since 1.0.0
+ */
+
+export function captureAllWith(a: dyn Allocator, argv: readonly string[], options: CaptureOptions): Output | Error {
+    let rawOut: ?u8[*] = null;
+    let rawErr: ?u8[*] = null;
+    let outLen: usize = 0;
+    let errLen: usize = 0;
+    const dir = options.dir;
+    const status = hx_process_capture_all(argv.ptr, argv.len, dir.ptr, dir.len, options.timeout as i64, &rawOut, &outLen, &rawErr, &errLen);
+    defer c.free(rawOut);
+    defer c.free(rawErr);
+    if (status < 0) throw ProcessError.CannotStart;
+    const stdout = try copyBytes(a, rawOut, outLen);
+    errdefer free(a, stdout);
+    const stderr = try copyBytes(a, rawErr, errLen);
+    return Output { status: status as u8, stdout, stderr };
+}
+
+/**
+ * Copies bytes that the runtime captured into memory from an allocator.
+ *
+ * @param a - The allocator for the copy
+ * @param raw - The bytes from `malloc`, or null when there are none
+ * @param len - The number of bytes
+ * @returns The copy, or the error of the allocator
+ *
+ * @remarks
+ * The caller still frees `raw` with `free` from C, since the copy does not take it over.
+ *
+ * @since 1.0.0
+ */
+
+function copyBytes(a: dyn Allocator, raw: ?u8[*], len: usize): u8[] | Error {
     const bytes = try alloc<u8>(a, len);
     if (const r = raw) {
         unsafe {
             for (const i of 0..len) bytes[i] = r[i];
         }
     }
-    return Output { status: status as u8, stdout: bytes };
+    return bytes;
 }
 
 /**

@@ -3,7 +3,7 @@
  */
 
 import { free } from "./heap";
-import { Env, Init, Output, ProcessError, capture, run } from "./process";
+import { Env, Init, Output, ProcessError, CaptureOptions, capture, captureAll, captureAllWith, run } from "./process";
 
 /**
  * Tests
@@ -71,7 +71,7 @@ describe("run") {
 
 describe("Output") {
     test("should hold the status and the bytes") {
-        const output = Output { status: 4, stdout: [] };
+        const output = Output { status: 4, stdout: [], stderr: [] };
 
         expect(output.status).toBe(4);
         expect(output.stdout.len).toBe(0);
@@ -105,5 +105,63 @@ describe("capture") {
 
     test("should fail with CannotStart for a program that does not exist") {
         expect(capture(testing.allocator, ["/nonexistent/helix-process-spec"])).toThrow(ProcessError.CannotStart);
+    }
+}
+
+describe("captureAll") {
+    test("should keep what the program wrote to stdout apart from what it wrote to stderr") {
+        const output = try captureAll(testing.allocator, ["sh", "-c", "printf out; printf err >&2; exit 3"]);
+        const out: string = output.stdout;
+        const err: string = output.stderr;
+
+        expect(output.status).toBe(3);
+        expect(out).toBe("out");
+        expect(err).toBe("err");
+        free(testing.allocator, output.stdout);
+        free(testing.allocator, output.stderr);
+    }
+
+    test("should read a stream that fills its pipe while the other stays quiet") {
+        const output = try captureAll(testing.allocator, ["sh", "-c", "head -c 200000 /dev/zero >&2"]);
+
+        expect(output.status).toBe(0);
+        expect(output.stdout.len).toBe(0);
+        expect(output.stderr.len).toBe(200000);
+        free(testing.allocator, output.stdout);
+        free(testing.allocator, output.stderr);
+    }
+
+    test("should fail with CannotStart for a program that does not exist") {
+        expect(captureAll(testing.allocator, ["/nonexistent/helix-process-spec"])).toThrow(ProcessError.CannotStart);
+    }
+}
+
+describe("CaptureOptions") {
+    test("should run the program as captureAll does when no field is given") {
+        const options = CaptureOptions {};
+
+        expect(options.dir.len).toBe(0);
+        expect(options.timeout).toBe(0);
+    }
+}
+
+describe("captureAllWith") {
+    test("should start the program in the given folder") {
+        const output = try captureAllWith(testing.allocator, ["pwd", "-P"], CaptureOptions { dir: "/" });
+        const out: string = output.stdout;
+
+        expect(out).toBe("/\n");
+        free(testing.allocator, output.stdout);
+        free(testing.allocator, output.stderr);
+    }
+
+    test("should kill a program that runs past its time and keep what it wrote") {
+        const output = try captureAllWith(testing.allocator, ["sh", "-c", "echo early; sleep 10"], CaptureOptions { timeout: 200 });
+        const out: string = output.stdout;
+
+        expect(output.status).toBe(137);
+        expect(out).toBe("early\n");
+        free(testing.allocator, output.stdout);
+        free(testing.allocator, output.stderr);
     }
 }
