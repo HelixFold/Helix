@@ -1127,7 +1127,7 @@ export struct Step {
 }
 
 /**
- * A name and a value, used for `-D` options and for the programs of helix.jsonc.
+ * A name and a value, used for the `--name=value` options of build.hx and for the programs of helix.jsonc.
  *
  * @remarks
  * For a program the name is the name of the program and the value is its root.
@@ -1154,7 +1154,7 @@ struct Define {
 }
 
 /**
- * An option that build.hx declared, for `--help` and to catch a misspelled `-D`.
+ * An option that build.hx declared, for `--help` and to catch a misspelled option.
  *
  * @remarks
  * {@link Build.declare} records one the first time that build.hx asks for a name.
@@ -1199,7 +1199,7 @@ struct Declared {
  * A `run` or `test` step of its own replaces the default one.
  *
  * `--target` and `--mode` belong to the runner, and build.hx reads them as `b.target` and `b.mode`.
- * `-Dname=value` is only for the options that build.hx declares.
+ * Any other `--name=value` is an option that build.hx declares.
  *
  * `helix build` compiles build.hx with the runner of this module and runs it.
  * The `build` function only records options, artifacts, and steps.
@@ -1301,14 +1301,14 @@ export struct Build {
     mode: Mode,
 
     /**
-     * The `-D` options of the command line, in order.
+     * The options of the command line that build.hx declares, in order.
      *
      * @remarks
-     * A `-Dname` without a value holds `true`.
+     * A `--name` without a value holds `true`.
      *
      * @example
      * ```hx
-     * b.defines.items.len; // 2 for helix build -Dfast -Dlevel=3
+     * b.defines.items.len; // 2 for helix build --fast --level=3
      * ```
      *
      * @since 1.0.0
@@ -1424,24 +1424,24 @@ export struct Build {
     defaults: ArrayList<usize>,
 
     /**
-     * Declares an option and returns the value of its `-D` on the command line.
+     * Declares an option and returns its value on the command line.
      *
      * @param this - The build
      * @param name - The name of the option
      * @param kind - The kind of value that `--help` shows
      * @param description - The description that `--help` shows
-     * @returns The text after `-Dname=`, `true` for a bare `-Dname`, or null when the command line leaves it out
+     * @returns The text after `--name=`, `true` for a bare `--name`, or null when the command line leaves it out
      *
      * @remarks
-     * The first call for a name records the option, so `--help` lists it and the runner accepts its `-D`.
+     * The first call for a name records the option, so `--help` lists it and the runner accepts its `--name`.
      * Later calls for the same name keep the first kind and description.
-     * When the command line repeats a `-D`, the first one wins.
+     * When the command line repeats an option, the first one wins.
      * The typed methods {@link Build.optionBool}, {@link Build.optionString}, and {@link Build.optionInt} call it.
      * It ends the process with status 2 when there is no memory to record the option.
      *
      * @example
      * ```hx
-     * b.declare("level", "string", "How loud to be"); // "high" for helix build -Dlevel=high
+     * b.declare("level", "string", "How loud to be"); // "high" for helix build --level=high
      * ```
      *
      * @since 1.0.0
@@ -1468,14 +1468,14 @@ export struct Build {
      * @param this - The build
      * @param name - The name of the option
      * @param description - The description that `--help` shows
-     * @returns `true` for `-Dname` or `-Dname=true`, `false` for `-Dname=false`, or null when the option is left out
+     * @returns `true` for `--name` or `--name=true`, `false` for `--name=false`, or null when the option is left out
      *
      * @remarks
      * Any other value prints an error and ends the process with status 2.
      *
      * @example
      * ```hx
-     * const tracing = b.optionBool("tracing", "Log every request") ?? false; // true for -Dtracing
+     * const tracing = b.optionBool("tracing", "Log every request") ?? false; // true for --tracing
      * ```
      *
      * @since 1.0.0
@@ -1485,7 +1485,7 @@ export struct Build {
         if (const value = this.declare(name, "bool", description)) {
             if (equal(value, "true")) return true;
             if (equal(value, "false")) return false;
-            eprintln(`error: -D${name} takes true or false, not '${value}'`);
+            eprintln(`error: --${name} takes true or false, not '${value}'`);
             exit(2);
         }
         return null;
@@ -1497,15 +1497,15 @@ export struct Build {
      * @param this - The build
      * @param name - The name of the option
      * @param description - The description that `--help` shows
-     * @returns The text after `-Dname=`, or null when the option is left out
+     * @returns The text after `--name=`, or null when the option is left out
      *
      * @remarks
      * The text runs to the end of the argument, so it may hold more `=` signs.
-     * A bare `-Dname` gives `true`.
+     * A bare `--name` gives `true`.
      *
      * @example
      * ```hx
-     * b.optionString("name", "The name to greet"); // "ada" for -Dname=ada
+     * b.optionString("name", "The name to greet"); // "ada" for --name=ada
      * ```
      *
      * @since 1.0.0
@@ -1521,14 +1521,14 @@ export struct Build {
      * @param this - The build
      * @param name - The name of the option
      * @param description - The description that `--help` shows
-     * @returns The whole number after `-Dname=`, or null when the option is left out
+     * @returns The whole number after `--name=`, or null when the option is left out
      *
      * @remarks
      * A value that is not a whole number prints an error and ends the process with status 2.
      *
      * @example
      * ```hx
-     * b.optionInt("jobs", "How many jobs"); // 8 for -Djobs=8
+     * b.optionInt("jobs", "How many jobs"); // 8 for --jobs=8
      * ```
      *
      * @since 1.0.0
@@ -1537,7 +1537,7 @@ export struct Build {
     optionInt(this: *Build, name: string, description: string): ?i64 {
         if (const value = this.declare(name, "int", description)) {
             return parseInt(value) catch {
-                eprintln(`error: -D${name} takes a whole number, not '${value}'`);
+                eprintln(`error: --${name} takes a whole number, not '${value}'`);
                 exit(2);
             };
         }
@@ -2230,12 +2230,12 @@ function modeNamed(name: string): ?Mode {
  *
  * @remarks
  * `helix build` starts the runner with the path of the compiler and of the packages list.
- * The options are `--target t`, `--mode m`, `-Dname=value`, `--help` or `-h`, `--steps`, and `-v`,
+ * The options are `--target t`, `--mode m`, `--help` or `-h`, `--steps`, `-v`, and `--name=value` for build.hx,
  * and everything after `--` goes to the program of the `run` step.
  * The runner adds the steps that helix.jsonc implies, calls `build`, and then:
  * - with `--help`, prints the steps, the options of build.hx, and the general options, and returns 0
  * - with `--steps`, prints the named steps and returns 0
- * - returns 2 for a `-D` that build.hx never declared, and for an unknown step
+ * - returns 2 for a `--name` that build.hx never declared, and for an unknown step
  * - performs each step named, or `install` when none is, and returns 1 when one fails
  *
  * Everything that the build allocates comes from one arena, which is freed before it returns.
@@ -2302,7 +2302,7 @@ export function runBuild(init: Init, build: (b: *Build) => void | Error): u8 | E
             list = true;
         } else if (equal(arg, "--help") || equal(arg, "-h")) {
             help = true;
-        } else if (startsWith(arg, "-D")) {
+        } else if (startsWith(arg, "--") && arg.len > 2) {   // an option of build.hx: --name=value, or --name for true
             const eq = indexOf(arg, "=") ?? arg.len;
             try b.defines.append(Define { name: arg[2..eq], value: eq < arg.len ? arg[eq + 1..] : "true" });
         } else if (startsWith(arg, "-")) {
@@ -2317,13 +2317,13 @@ export function runBuild(init: Init, build: (b: *Build) => void | Error): u8 | E
     try build(&b);
 
     if (help) {
-        println("Usage: helix build [steps] [--target t] [--mode m] [-Dname=value] [-v] [-- program args]\n\nSteps:");
+        println("Usage: helix build [steps] [--target t] [--mode m] [--name=value] [-v] [-- program args]\n\nSteps:");
         for (const s of b.steps.items) {
             if (s.name.len > 0) println(`  ${s.name}  ${s.description}`);
         }
         println("\nOptions (from build.hx):");
         if (b.declared.items.len == 0) println("  (none)");
-        for (const d of b.declared.items) println(`  -D${d.name}=[${d.kind}]  ${d.description}`);
+        for (const d of b.declared.items) println(`  --${d.name}=[${d.kind}]  ${d.description}`);
         println("\nGeneral:");
         println("  --target t  what to build for: aarch64-macos, x86_64-linux-gnu, x86_64-windows, ... (default: this machine)");
         println("  --mode m  debug (default), release-safe, release-fast or release-small");
@@ -2336,15 +2336,11 @@ export function runBuild(init: Init, build: (b: *Build) => void | Error): u8 | E
         }
         return 0;
     }
-    for (const d of b.defines.items) {   // a -D that build.hx never asked about is a typo, not a no-op
+    for (const d of b.defines.items) {   // an option that build.hx never asked about is a typo, not a no-op
         let known = false;
         for (const k of b.declared.items) known = known || equal(k.name, d.name);
-        if (!known && (equal(d.name, "target") || equal(d.name, "mode"))) {
-            eprintln(`error: -D${d.name} is now --${d.name}: \`helix build --${d.name} ${d.value}\``);
-            return 2;
-        }
         if (!known) {
-            eprintln(`error: build.hx has no option -D${d.name}; \`helix build --help\` lists them`);
+            eprintln(`error: build.hx has no option --${d.name}; \`helix build --help\` lists them`);
             return 2;
         }
     }

@@ -833,12 +833,12 @@ describe("Step") {
 
 describe("Build") {
     describe("declare") {
-        test("should return the value of the -D option and accept it") {
+        test("should return the value of the option and accept it") {
             let arena = ArenaAllocator.init(cAllocator());
             defer arena.deinit();
             const a = arena.allocator();
             const dir = try project(a, "declare", "");
-            const status = try runIn(a, dir, ["-Dlevel=high", "--steps"], withDeclare);
+            const status = try runIn(a, dir, ["--level=high", "--steps"], withDeclare);
 
             expect(status).toBe(0);
             expect(seenString).toBe("high");
@@ -858,12 +858,12 @@ describe("Build") {
     }
 
     describe("optionBool") {
-        test("should read a bare -D option as true") {
+        test("should read a bare option as true") {
             let arena = ArenaAllocator.init(cAllocator());
             defer arena.deinit();
             const a = arena.allocator();
             const dir = try project(a, "bool-bare", "");
-            void try runIn(a, dir, ["-Dfast", "--steps"], withBool);
+            void try runIn(a, dir, ["--fast", "--steps"], withBool);
 
             expect(seenBool).toBe(true);
             cleanUp();
@@ -874,7 +874,7 @@ describe("Build") {
             defer arena.deinit();
             const a = arena.allocator();
             const dir = try project(a, "bool-false", "");
-            void try runIn(a, dir, ["-Dfast=false", "--steps"], withBool);
+            void try runIn(a, dir, ["--fast=false", "--steps"], withBool);
 
             expect(seenBool).toBe(false);
             cleanUp();
@@ -898,7 +898,7 @@ describe("Build") {
             defer arena.deinit();
             const a = arena.allocator();
             const dir = try project(a, "string", "");
-            void try runIn(a, dir, ["-Dname=a=b", "--steps"], withString);
+            void try runIn(a, dir, ["--name=a=b", "--steps"], withString);
 
             expect(seenString).toBe("a=b");
             cleanUp();
@@ -911,7 +911,7 @@ describe("Build") {
             defer arena.deinit();
             const a = arena.allocator();
             const dir = try project(a, "int", "");
-            void try runIn(a, dir, ["-Djobs=-12", "--steps"], withInt);
+            void try runIn(a, dir, ["--jobs=-12", "--steps"], withInt);
 
             expect(seenInt).toBe(-12);
             cleanUp();
@@ -1149,18 +1149,19 @@ describe("runBuild") {
         const a = arena.allocator();
         const dir = try project(a, "unknown-option", "");
 
-        expect(try runIn(a, dir, ["--fast"], emptyBuild)).toBe(2);
+        expect(try runIn(a, dir, ["-x"], emptyBuild)).toBe(2);
+        expect(try runIn(a, dir, ["-Dfast"], emptyBuild)).toBe(2);
         cleanUp();
     }
 
-    test("should return 2 for a -D option that the build never declares") {
+    test("should return 2 for an option that the build never declares") {
         let arena = ArenaAllocator.init(cAllocator());
         defer arena.deinit();
         const a = arena.allocator();
         const dir = try project(a, "undeclared", "");
 
-        expect(try runIn(a, dir, ["-Dfast"], emptyBuild)).toBe(2);
-        expect(try runIn(a, dir, ["-Dmode=debug"], emptyBuild)).toBe(2);
+        expect(try runIn(a, dir, ["--fast"], emptyBuild)).toBe(2);
+        expect(try runIn(a, dir, ["--level=high"], emptyBuild)).toBe(2);
         cleanUp();
     }
 
