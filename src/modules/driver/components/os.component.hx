@@ -1377,7 +1377,7 @@ export function compilerPath(): ?string {
  *
  * @remarks
  * It is how the compiler finds its standard library and runtime files next to the installed executable.
- * A compiler built from the repository runs from `helix-out/bin`,
+ * A compiler built from the repository runs from `.helix-out/bin`,
  * so it also looks two folders up, where the repository keeps its own `lib`.
  *
  * @example
