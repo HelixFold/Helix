@@ -2,7 +2,6 @@
  * Imports
  */
 
-import { cmdLsp } from "@modules/ide/ide.module";
 import { Version } from "@constants/version.constant";
 import { hxDiagListFree } from "@models/diagnostic.model";
 import * as sys from "@modules/driver/bindings/sys.binding";
@@ -26,7 +25,6 @@ import { Usage, TestStarts } from "@modules/driver/constants/driver.constant";
 import { Strings } from "@modules/driver/components/structs/os-component.struct";
 import { hxSourceLoad, hxSourceLineCol, hxSourceFree } from "@models/source.model";
 import { Options } from "@modules/driver/components/structs/compile-component.struct";
-import { cmdDebugLaunch, cmdActions } from "@modules/ide/components/actions.component";
 import { cmdProjectBuild, movedToHpm } from "@modules/driver/components/project.component";
 import { HxCodegenOptions } from "@modules/codegen/components/structs/base-component.struct";
 import { TranslateOptions } from "@modules/driver/components/structs/translate-component.struct";
@@ -82,7 +80,7 @@ function parseMode(text: string, mode: *u32): bool {
 }
 
 /**
- * Parses the options of `run`, `build <file>`, `check`, `ir`, `ast`, `tokens`, and `debug-launch`.
+ * Parses the options of `run`, `build <file>`, `check`, `ir`, `ast`, and `tokens`.
  *
  * @param args - The arguments after the command name
  * @returns The options, or `null` after reporting an error
@@ -817,7 +815,6 @@ function cmdTranslateC(args: readonly string[]): u8 {
  * `helix build` with a `.hx` file before any `--` builds that one file.
  * Otherwise it builds the project through its build.hx.
  * The commands that moved to hpm, such as `add` and `init`, report where they went.
- * `lsp --answer <file>` answers one question for a server that cannot fork, as on Windows.
  *
  * @example
  * ```hx
@@ -842,11 +839,6 @@ export function run(args: readonly string[]): u8 {
     }
 
     if (equal(command, "test")) return cmdTest(rest);
-    if (equal(command, "lsp")) {   // `--answer <file>`: one question, from a server that can't fork (Windows)
-        if (rest.len == 2 && equal(rest[0], "--answer")) return cmdLsp(rest[1]);
-        return cmdLsp(null);
-    }
-    if (equal(command, "actions")) return cmdActions(rest);
     if (equal(command, "cc")) return cmdCc(rest);
     if (const status = movedToHpm(command, rest)) return status;
     if (equal(command, "translate-c")) return cmdTranslateC(rest);
@@ -861,7 +853,7 @@ export function run(args: readonly string[]): u8 {
         if (!file) return cmdProjectBuild(rest);
     }
 
-    const commands: string[7] = ["run", "build", "check", "ir", "ast", "tokens", "debug-launch"];
+    const commands: string[6] = ["run", "build", "check", "ir", "ast", "tokens"];
     for (const name, i of commands) {
         if (!equal(command, name)) continue;
         const parsed = parseOptions(rest);
@@ -872,7 +864,6 @@ export function run(args: readonly string[]): u8 {
         if (i == 2) return cmdCheck(&options);
         if (i == 3) return cmdIr(&options);
         if (i == 4) return cmdAst(&options);
-        if (i == 6) return cmdDebugLaunch(&options);
         return cmdTokens(&options);
     }
 
