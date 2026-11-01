@@ -8,7 +8,7 @@ A `build.hx` adds what a project needs beyond that: options, C sources, extra pr
 ## Commands
 
 ```bash
-helix build                     # the default step, install: each program into helix-out/bin
+helix build                     # the default step, install: each program into .helix-out/bin
 helix build run -- ada          # builds and runs the program, passing on the arguments after --
 helix build test                # runs the specs in src/
 helix build --help              # the steps, and the options that build.hx declares
@@ -32,7 +32,7 @@ export function build(b: *Build): void | Error {
     const greet = try b.bin("greet");                   // helix.jsonc's program
     try greet.addOptions(config);
 
-    const release = try b.step("release", "greet for Linux, in helix-out/linux");
+    const release = try b.step("release", "greet for Linux, in .helix-out/linux");
     const linux = try b.addExecutable({ name: "greet", root: "src/main.hx", target: "x86_64-linux", mode: Mode.ReleaseSafe });
     try linux.addOptions(config);
     try release.dependOn(try b.addInstall(linux, "linux"));
@@ -59,7 +59,7 @@ export function main(init: Init): void {
 ```bash
 helix build run -- ada                      # hello ada
 helix build run --greeting=hi --loud -- ada # hi! ada
-helix build release                         # helix-out/linux/greet
+helix build release                         # .helix-out/linux/greet
 ```
 
 ```text
@@ -67,10 +67,10 @@ $ helix build --help
 Usage: helix build [steps] [--target t] [--mode m] [--name=value] [-v] [-- program args]
 
 Steps:
-  install  Build everything `install`ed into helix-out/ (the default)
+  install  Build everything `install`ed into .helix-out/ (the default)
   run  Build and run the program; arguments after `--` go to it
   test  Run the tests
-  release  greet for Linux, in helix-out/linux
+  release  greet for Linux, in .helix-out/linux
 
 Options (from build.hx):
   --greeting=[string]  What greet says first
@@ -124,8 +124,8 @@ and the script reads the first two as `b.target` and `b.mode`.
 | `addExecutable({ name, root, target?, mode?, strip?, cpu?, linkerScript? })` | a program that isn't in `bin`, such as a code generator                      |
 | `addTestStep({ root, mode?, target?, linkWith? })`                           | replaces the `test` step with `helix test` on a file or folder               |
 | `addRunStep(artifact)`                                                       | replaces the `run` step                                                      |
-| `install(artifact)`                                                          | copies it into `helix-out/bin` as part of `install`                          |
-| `addInstall(artifact, dir)`                                                  | a step that copies it into `helix-out/<dir>`                                 |
+| `install(artifact)`                                                          | copies it into `.helix-out/bin` as part of `install`                         |
+| `addInstall(artifact, dir)`                                                  | a step that copies it into `.helix-out/<dir>`                                |
 | `step(name, description)`                                                    | a step of its own, and `dependOn(other)` orders steps                        |
 | `addSystemCommand(argv)`                                                     | a step that runs a program                                                   |
 
@@ -166,8 +166,8 @@ by starting `helix` and `helix cc`.
 |-------------------------------------------|---------------------------------------------------------------|
 | `.helix-cache/build`                      | the compiled `build.hx` and its runner                        |
 | `.helix-cache/bin/<target>/<mode>/<name>` | each executable, with `.exe` for Windows and `.wasm` for WASI |
-| `helix-out/bin`                           | what `install` copies, and the programs of `bin`              |
-| `helix-out/<dir>`                         | what an `addInstall(artifact, dir)` step copies               |
+| `.helix-out/bin`                          | what `install` copies, and the programs of `bin`              |
+| `.helix-out/<dir>`                        | what an `addInstall(artifact, dir)` step copies               |
 
 ## See also
 
