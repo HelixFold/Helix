@@ -1,7 +1,11 @@
 # helix.jsonc
 
 `helix.jsonc` describes a package: its name, its programs, the C it brings, and its dependencies.
-It is data only, so a dependency never runs code on your machine while you build.
+
+::: tip 🔐 Data, not code
+`helix.jsonc` is data only, so a dependency never runs code on your machine while you build.
+A package's `build.hx` runs only when someone builds that package itself.
+:::
 
 ## An example
 
@@ -14,10 +18,10 @@ It is data only, so a dependency never runs code on your machine while you build
     "helix": ">=1.0.0",                         // the compiler versions it works with
 
     "exports": { ".": "src/index.hx", "./x509": "src/x509.hx" },
-    "bin": { "tls-probe": "src/probe.hx" },     // the programs that helix build builds
+    "bin": { "tls-probe": "src/probe.hx" },     // the programs that helix build builds // [!code highlight]
     "aliases": { "@x509": "src/x509" },
 
-    "c": {
+    "c": { // [!code highlight]
         "sources": ["c/bearssl/src/*.c"],       // compiled for the consumer's target and mode
         "flags": ["-O2"],
         "includeDirs": ["c/bearssl/inc"],

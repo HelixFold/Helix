@@ -17,22 +17,13 @@ helix build --target x86_64-linux --mode release-fast
 
 ## An example
 
-```jsonc
-// helix.jsonc
-{
-    "name": "greet",
-    "version": "0.1.0",
-    "bin": { "greet": "src/main.hx" },
-}
-```
-
-```hx
-// build.hx
+::: code-group
+```hx [build.hx]
 import { Build, Mode } from "std/build";
 
 export function build(b: *Build): void | Error {
-    const greeting = b.optionString("greeting", "What greet says first") ?? "hello";
-    const loud = b.optionBool("loud", "Shout the greeting") ?? false;
+    const greeting = b.optionString("greeting", "What greet says first") ?? "hello"; // [!code highlight]
+    const loud = b.optionBool("loud", "Shout the greeting") ?? false; // [!code highlight]
 
     const config = try b.addOptions("config");          // a module that the program imports
     try config.addString("greeting", greeting);
@@ -47,17 +38,23 @@ export function build(b: *Build): void | Error {
     try release.dependOn(try b.addInstall(linux, "linux"));
 }
 ```
-
-```hx
-// src/main.hx
+```jsonc [helix.jsonc]
+{
+    "name": "greet",
+    "version": "0.1.0",
+    "bin": { "greet": "src/main.hx" },
+}
+```
+```hx [src/main.hx]
 import { Init } from "std";
-import { greeting, loud } from "config";
+import { greeting, loud } from "config";                // the module that build.hx made // [!code highlight]
 
 export function main(init: Init): void {
     const name = init.args.len > 0 ? init.args[0] : "world";
     println(`${greeting}${loud ? "!" : ""} ${name}`);
 }
 ```
+:::
 
 ```bash
 helix build run -- ada                      # hello ada
@@ -103,6 +100,16 @@ An option that the script never declares is an error, so a misspelled one never 
 ```text
 error: build.hx has no option --nope; `helix build --help` lists them
 ```
+
+::: warning 🔁 No more `-D`
+Options used to be written `-Dname=value`.
+They are now `--name=value`, and `-D` is an unknown option:
+
+```bash
+helix build run -Dgreeting=hi    # error: unknown option '-Dgreeting=hi' # [!code --]
+helix build run --greeting=hi    # [!code ++]
+```
+:::
 
 `--target`, `--mode`, `--steps`, `--help`, and `-v` belong to `helix build` itself,
 and the script reads the first two as `b.target` and `b.mode`.

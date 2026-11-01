@@ -52,7 +52,7 @@ An iterator is any value whose type has a method `next(this: *Self): ?T`.
 struct Countdown {
     n: i32,
 
-    next(this: *Countdown): ?i32 {
+    next(this: *Countdown): ?i32 { // [!code focus:5]
         if (this.n == 0) return null;
         this.n -= 1;
         return this.n + 1;
@@ -61,7 +61,7 @@ struct Countdown {
 
 export function main(): void {
     let count = Countdown { n: 3 };
-    for (const n of count) print(`${n} `);          // 3 2 1
+    for (const n of count) print(`${n} `);          // 3 2 1 // [!code focus]
 }
 ```
 
@@ -80,8 +80,10 @@ import { lines } from "std";
 for (const line of lines("one\ntwo")) print(`<${line}> `);     // <one> <two>
 ```
 
+::: warning ⚠️ Fallible iterators
 A `next` that can fail, `?T | Error`, doesn't fit `for-of`, which has no place for a `try`.
 Write `while (const x = try it.next()) { ... }` instead.
+:::
 
 ## switch
 
@@ -92,9 +94,9 @@ The expression form gives each case one value:
 function status(code: i32): string {
     return switch (code) {
         case 0: "ok";
-        case 1, 2: "warning";                   // either value
-        case 400..=499: "client error";         // a range
-        case n if n >= 500: "server error";     // a binding with a guard
+        case 1, 2: "warning";                   // either value // [!code highlight]
+        case 400..=499: "client error";         // a range // [!code highlight]
+        case n if n >= 500: "server error";     // a binding with a guard // [!code highlight]
         default: "unknown";
     };
 }
@@ -106,7 +108,8 @@ Enums must be handled completely, and a missing member is an error that names it
 function label(role: Role): string {
     return switch (role) {
         case Role.Admin: "admin";
-        case Role.Member, Role.Guest: "user";
+        case Role.Member: "user"; // [!code --]
+        case Role.Member, Role.Guest: "user"; // [!code ++]
     };
 }
 ```

@@ -51,7 +51,7 @@ The compiler rejects a pointer that would outlive its target:
 ```hx
 function bad(): *i32 {
     let local: i32 = 1;
-    return &local;
+    return &local;                          // gone when bad returns // [!code error]
 }
 ```
 
@@ -80,9 +80,9 @@ function makeUser(a: dyn Allocator, id: u32): *User | Error {
 }
 
 export function main(): void | Error {
-    let debug = DebugAllocator.init(cAllocator());  // checks every free, and reports leaks
-    defer void debug.deinit();
-    const a = debug.allocator();
+    let debug = DebugAllocator.init(cAllocator());  // checks every free, and reports leaks // [!code focus]
+    defer void debug.deinit(); // [!code focus]
+    const a = debug.allocator(); // [!code focus]
 
     let list = ArrayList<i32>.init(a);
     defer list.deinit();
@@ -119,6 +119,12 @@ after free or an overrun at the access that does it, on macOS and Linux.
 ```text
 leak: 16 bytes were never freed
 ```
+
+::: danger 💥 Release builds
+`release-fast` and `release-small` remove the bounds checks, so an index past the end is undefined behavior there.
+Build code that handles untrusted input in `release-safe`.
+See [Safety](/language/safety#modes).
+:::
 
 An arena suits work whose memory all dies at once, such as a request or a parse:
 

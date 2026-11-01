@@ -7,8 +7,25 @@ Each test runs in its own process, so a panic or a timeout fails only that test.
 
 A spec sits next to the file that it tests, named `<name>.spec.hx`:
 
-```hx
-// port.hx
+::: code-group
+```hx [port.spec.hx]
+import { parsePort, PortError } from "./port";
+
+describe("parsePort") {
+    test("should read a plain port") {
+        expect(try parsePort("8080")).toBe(8080); // [!code highlight]
+    }
+
+    test("should reject an empty string") {
+        expect(parsePort("")).toThrow(PortError.Empty); // [!code highlight]
+    }
+
+    test("should accept the highest port") {
+        expect(parsePort("65535")).toSucceed(); // [!code highlight]
+    }
+}
+```
+```hx [port.hx]
 import { parseInt } from "std";
 
 export error PortError { Empty, OutOfRange }
@@ -20,25 +37,7 @@ export function parsePort(text: string): u16 | Error {
     return value as u16;
 }
 ```
-
-```hx
-// port.spec.hx
-import { parsePort, PortError } from "./port";
-
-describe("parsePort") {
-    test("should read a plain port") {
-        expect(try parsePort("8080")).toBe(8080);
-    }
-
-    test("should reject an empty string") {
-        expect(parsePort("")).toThrow(PortError.Empty);
-    }
-
-    test("should accept the highest port") {
-        expect(parsePort("65535")).toSucceed();
-    }
-}
-```
+:::
 
 ```text
 $ helix test
@@ -65,7 +64,7 @@ import { ArrayList } from "std";
 describe("ArrayList") {
     let list: ArrayList<i32> = undefined;
 
-    beforeEach {
+    beforeEach { // [!code focus:7]
         list = ArrayList<i32>.init(testing.allocator);
     }
 
@@ -81,7 +80,7 @@ describe("ArrayList") {
         try list.append(1);
         try list.append(2);
 
-        try require(list.items).toHaveLength(2);    // stops the test here when it fails
+        try require(list.items).toHaveLength(2);    // stops the test here when it fails // [!code highlight]
         expect(list.items).toEqual([1, 2]);
     }
 }
@@ -93,6 +92,11 @@ describe("ArrayList") {
 | `afterAll`   | once, after its last test                                  |
 | `beforeEach` | before every test in the block and in the blocks inside it |
 | `afterEach`  | after every test, also when the test fails                 |
+
+::: info 🧪 A fresh copy, literally
+Each `describe` runs in its own process, which sets up its fixtures and runs `beforeAll`, then forks once per test.
+What `beforeAll` does is in every test's copy, and what a test does is in nobody else's.
+:::
 
 `before*` hooks run outermost first, and `after*` hooks innermost first.
 A hook failing fails every test that it guards.
@@ -141,10 +145,10 @@ Matchers are type-checked: `expect(count).toBe("3")` is a compile error, not a f
 
 ```hx
 test.skip("should handle IPv6") { ... }
-test.only("should read a plain port") { ... }
+test.only("should read a plain port") { ... }              // remove before committing // [!code warning]
 test.todo("should support named ports");                    // without a body
 test.failing("should parse nested arrays") { ... }          // passes only while it fails: a known bug
-test.panics("should stop on a read past the end", "index out of bounds") {
+test.panics("should stop on a read past the end", "index out of bounds") { // [!code highlight]
     void list.items[5];                                     // passes only if it panics with this message
 }
 

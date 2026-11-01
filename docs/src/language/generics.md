@@ -93,12 +93,19 @@ struct Circle {
 
 There are two ways to use one:
 
-```hx
-function staticArea<S extends Shape>(shape: *S): f64 {     // static: one copy per S
+::: code-group
+```hx [static]
+function staticArea<S extends Shape>(shape: *S): f64 {     // one copy per S // [!code focus:3]
     return shape.area();
 }
 
-function total(shapes: readonly dyn Shape[]): f64 {         // dynamic: through a vtable
+export function main(): void {
+    let square = Square { side: 2 };
+    println(staticArea(&square));                           // 4
+}
+```
+```hx [dyn]
+function total(shapes: readonly dyn Shape[]): f64 {         // one copy, through a vtable // [!code focus:5]
     let result: f64 = 0;
     for (const shape of shapes) result += shape.area();
     return result;
@@ -107,11 +114,11 @@ function total(shapes: readonly dyn Shape[]): f64 {         // dynamic: through 
 export function main(): void {
     let square = Square { side: 2 };
     let circle = Circle { radius: 1 };
-    println(staticArea(&square));                           // 4
-    const shapes: dyn Shape[2] = [&square, &circle];
+    const shapes: dyn Shape[2] = [&square, &circle];        // two types in one slice // [!code highlight]
     println(total(&shapes));                                // 7.14159
 }
 ```
+:::
 
 |                          | `<S extends Shape>`           | `dyn Shape`      |
 |--------------------------|-------------------------------|------------------|
@@ -124,6 +131,13 @@ export function main(): void {
 - An interface is not a type of its own: `const s: Shape` is an error, so write `dyn Shape` or `<S extends Shape>`.
 
 When a type doesn't fit, the error says what is missing:
+
+```hx
+struct Quiet { x: i32 }
+
+let quiet = Quiet { x: 1 };
+println(staticArea(&quiet));        // Quiet has no area // [!code error]
+```
 
 ```text
 error: expected `dyn Shape`, found `*Quiet`

@@ -62,7 +62,10 @@ These work on `run`, `build <file>`, `check`, `ir`, and `test`:
 
 ## Packages
 
+::: info 📦 hpm
 Packages are installed by `hpm`, the package manager, which is a program of its own.
+:::
+
 `helix add`, `helix init`, and the other package commands say where they went:
 
 ```text

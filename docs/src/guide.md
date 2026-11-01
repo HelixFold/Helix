@@ -13,10 +13,14 @@ tar -xJf .github/bootstrap/helix-1.0.0-alpha.0-x86_64-linux.tar.xz -C "$HOME/.lo
 export PATH="$HOME/.local/helix-1.0.0-alpha.0-x86_64-linux:$PATH"
 export HELIX_HOME="$HOME/.local/helix-1.0.0-alpha.0-x86_64-linux/lib"
 
-helix build          # the compiler, in helix-out/bin/helix
+helix build          # the compiler, in helix-out/bin/helix # [!code highlight]
 helix build test     # its specs, run by the compiler the build just made
 helix build e2e      # the end-to-end checks in e2e/
 ```
+
+::: warning 🐧 Linux x86_64 only, for now
+The bootstrap toolchain is built for x86_64 Linux, and there is no prebuilt toolchain for other machines yet.
+:::
 
 The toolchain's `lib` folder holds the static LLVM, clang, lld, and the C library sources that the compiler needs,
 laid out as a `HELIX_HOME`.
@@ -30,25 +34,24 @@ See [Targets](/projects/targets).
 
 ## Your first program
 
-Save this as `hello.hx`:
+Save this as `hello.hx`, then run it:
 
-```hx
+::: code-group
+```hx [hello.hx]
 function add(a: i32, b: i32): i32 {
     return a + b;
 }
 
-export function main(): void {
+export function main(): void { // [!code focus:3]
     println(`hello from helix: ${add(40, 2)}`);
 }
 ```
-
-Run it, or build an executable:
-
-```bash
+```bash [run]
 helix run hello.hx                  # hello from helix: 42
 helix build hello.hx -o hello       # an executable named hello
 helix check hello.hx                # the errors only, without building
 ```
+:::
 
 `main` is the entry point.
 `println` takes a template string, and the compiler writes the formatting for each `${...}` from its type, so there is

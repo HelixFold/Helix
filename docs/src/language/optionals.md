@@ -33,6 +33,12 @@ export function main(): void {
 
 Using an optional as if it were the value is an error:
 
+```hx
+const name: ?string = "ada";
+println(name.len);              // name might be null // [!code --]
+println(name!.len);             // or name?.len, or a check first // [!code ++]
+```
+
 ```text
 error: `?string` might be null
   = hint: use `?.len` for an optional result, `!.len` if it can't be null, or check `!= null` first
@@ -44,8 +50,8 @@ After a check for `null`, the value has the plain type, as in TypeScript:
 
 ```hx
 function length(email: ?string): usize {
-    if (email == null) return 0;
-    return email.len;                       // a string after the early return
+    if (email == null) return 0; // [!code focus]
+    return email.len;                       // a string after the early return // [!code focus]
 }
 
 if (email != null) {
@@ -55,7 +61,10 @@ if (email != null) {
 
 `&&` and `?:` narrow too: `x != null && x.len > 0`.
 Narrowing applies to values that can't change underneath it, parameters and `const`.
-A `let` optional is read with `x!`, `x ?? fallback`, or a capture, `if (const v = x)`.
+::: info 🔒 Why only const
+A `let` could change between the check and the use, so it never narrows.
+Read a `let` optional with `x!`, `x ?? fallback`, or a capture, `if (const v = x)`.
+:::
 
 ## Leaving instead of a fallback
 

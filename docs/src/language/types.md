@@ -13,11 +13,11 @@ struct User {
     email: ?string = null,          // a field with a default
     role: Role = Role.Guest,
 
-    rename(this: *User, name: string): void {
+    rename(this: *User, name: string): void { // [!code highlight]
         this.name = name;
     }
 
-    describe(this: readonly *User): void {
+    describe(this: readonly *User): void { // [!code highlight]
         println(`${this.name} <${this.email ?? "none"}> ${this.role}`);
     }
 
@@ -72,7 +72,8 @@ When the type is already known, a leading dot is enough:
 
 ```hx
 let user: User = { id: 3, name: "bob" };
-user.role = .Member;                // Role, from the field's type
+user.role = Role.Member;            // explicit // [!code --]
+user.role = .Member;                // Role, from the field's type // [!code ++]
 ```
 
 ## Tagged unions
@@ -91,8 +92,8 @@ union Event {
 
 function handle(event: Event): void {
     switch (event) {
-        case Event.click(p): println(`click at ${p.x}, ${p.y}`);
-        case Event.key({ code, shift }): println(`key ${code} shift ${shift}`);
+        case Event.click(p): println(`click at ${p.x}, ${p.y}`); // [!code focus]
+        case Event.key({ code, shift }): println(`key ${code} shift ${shift}`); // [!code focus]
         case Event.quit: println("quit");
     }
 }

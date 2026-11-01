@@ -12,7 +12,7 @@ function buildSquares(): u32[8] {
     return table;
 }
 
-const Squares = comptime buildSquares();    // computed by the compiler, stored as a constant
+const Squares = comptime buildSquares();    // computed by the compiler, stored as a constant // [!code highlight]
 
 export function main(): void {
     println(Squares);                       // [0, 1, 4, 9, 16, 25, 36, 49]
@@ -66,6 +66,14 @@ arithmetic, comparisons, `if`, `while`, `for`, `switch`, locals, arrays, slices,
 - Whatever would panic at run time is a compile error at the line that caused it, with a note at the `comptime` that
   started the evaluation:
 
+```hx
+function divide(a: i32, b: i32): i32 {
+    return a / b;                           // b is 0 here // [!code error]
+}
+
+const Bad = comptime divide(1, 0);          // the evaluation starts here // [!code warning]
+```
+
 ```text
 error: division by zero at compile time
  --> app.hx:2:12
@@ -100,8 +108,10 @@ function small<T>(x: T): T {
 
 `small<i32>` compiles, and `small` of a 16-byte struct fails with that message.
 
+::: warning 🪵 Debugging only
 `@compileLog(a, T, ...)` prints values known while compiling, and the types of the rest, and stops the build so it
 is never left in by mistake:
+:::
 
 ```text
 error: compile log: i32 = i32, 2 + 3 = 5
