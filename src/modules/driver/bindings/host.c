@@ -1,7 +1,6 @@
 /*
- * The operating system under the compiler (os.hx, the language server): what differs between macOS, Linux and Windows,
- * behind one set of functions that take plain types. Paths come back with `/` on every system; Windows takes them that
- * way too.
+ * The operating system under the compiler (os.hx): what differs between macOS, Linux and Windows, behind one set of
+ * functions that take plain types. Paths come back with `/` on every system; Windows takes them that way too.
  *
  * Processes are handles (a pid, or a Windows process handle) and their results exit codes: 128 + the signal for one
  * a signal killed, -1 when waiting failed.
@@ -25,7 +24,6 @@
 #include <fcntl.h>
 #include <fnmatch.h>
 #include <ftw.h>
-#include <poll.h>
 #include <spawn.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -476,124 +474,6 @@ int64_t hx_os_wait_any(int64_t *code) {
         }
         if (errno != EINTR) return -1;
     }
-#endif
-}
-
-/* ---- the language server ---- */
-
-/** Whether hx_os_fork works here: the language server forks a child per question, or (Windows) starts one. */
-int hx_os_can_fork(void) {
-#if defined(_WIN32)
-    return 0;
-#else
-    return 1;
-#endif
-}
-
-/** fork(), with a pipe from the child (its end in `*write_end`) to the parent (`*read_end`). -1 on failure. */
-int64_t hx_os_fork(int *read_end, int *write_end) {
-#if defined(_WIN32)
-    (void)read_end;
-    (void)write_end;
-    return -1;
-#else
-    int fds[2];
-    if (pipe(fds) != 0) return -1;
-    pid_t child = fork();
-    if (child < 0) {
-        close(fds[0]);
-        close(fds[1]);
-        return -1;
-    }
-    if (child == 0) {
-        close(fds[0]);
-        dup2(2, 1);   // anything the compiler prints goes to the editor's log, never into the protocol
-        *write_end = fds[1];
-    } else {
-        close(fds[1]);
-        *read_end = fds[0];
-    }
-    return child;
-#endif
-}
-
-void hx_os_exit_now(int code) {
-#if defined(_WIN32)
-    ExitProcess((UINT)code);
-#else
-    _exit(code);
-#endif
-}
-
-/** read(), retried when a signal interrupts it. */
-int64_t hx_os_read(int fd, void *buf, size_t len) {
-#if defined(_WIN32)
-    return _read(fd, buf, (unsigned)len);
-#else
-    for (;;) {
-        ssize_t n = read(fd, buf, len);
-        if (n >= 0 || errno != EINTR) return n;
-    }
-#endif
-}
-
-/** write(), retried when a signal interrupts it. */
-int64_t hx_os_write(int fd, const void *bytes, size_t len) {
-#if defined(_WIN32)
-    return _write(fd, bytes, (unsigned)len);
-#else
-    for (;;) {
-        ssize_t n = write(fd, bytes, len);
-        if (n >= 0 || errno != EINTR) return n;
-    }
-#endif
-}
-
-int hx_os_close(int fd) {
-#if defined(_WIN32)
-    return _close(fd);
-#else
-    return close(fd);
-#endif
-}
-
-/** A file opened for appending (the language server's log), or -1. */
-int hx_os_open_append(const char *path) {
-#if defined(_WIN32)
-    return _open(path, _O_WRONLY | _O_CREAT | _O_APPEND | _O_BINARY, 0644);
-#else
-    return open(path, O_WRONLY | O_CREAT | O_APPEND, 0644);
-#endif
-}
-
-/** Whether stdin has input within `timeout` ms (-1: wait as long as it takes): 1, 0 on a timeout, -1 on an error. */
-int hx_os_wait_stdin(int timeout) {
-#if defined(_WIN32)
-    HANDLE in = GetStdHandle(STD_INPUT_HANDLE);
-    if (GetFileType(in) != FILE_TYPE_PIPE) return 1;   // a file or a console: reading doesn't wait for long
-    ULONGLONG until = timeout < 0 ? 0 : GetTickCount64() + (ULONGLONG)timeout;
-    for (;;) {
-        DWORD available = 0;
-        if (!PeekNamedPipe(in, NULL, 0, NULL, &available, NULL)) return 1;   // closed: the read sees the end
-        if (available > 0) return 1;
-        if (timeout >= 0 && GetTickCount64() >= until) return 0;
-        Sleep(5);
-    }
-#else
-    struct pollfd fd = { 0, POLLIN, 0 };
-    for (;;) {
-        int ready = poll(&fd, 1, timeout);
-        if (ready >= 0) return ready > 0;
-        if (errno != EINTR) return -1;
-    }
-#endif
-}
-
-/** Binary stdin and stdout: Windows would otherwise turn `\n` into `\r\n` in the protocol. */
-void hx_os_binary_stdio(void) {
-#if defined(_WIN32)
-    _setmode(0, _O_BINARY);
-    _setmode(1, _O_BINARY);
 #endif
 }
 
