@@ -59,6 +59,7 @@ export default defineVersionedConfig({
                     { text: 'helix.jsonc', link: '/projects/manifest' },
                     { text: 'build.hx', link: '/projects/build' },
                     { text: 'Testing', link: '/projects/testing' },
+                    { text: 'Debugging', link: '/projects/debugging' },
                     { text: 'Targets', link: '/projects/targets' }
                 ]
             },
@@ -113,6 +114,7 @@ export default defineVersionedConfig({
                         { text: 'helix.jsonc', link: '/projects/manifest' },
                         { text: 'build.hx', link: '/projects/build' },
                         { text: 'Testing', link: '/projects/testing' },
+                        { text: 'Debugging', link: '/projects/debugging' },
                         { text: 'Targets', link: '/projects/targets' }
                     ]
                 },

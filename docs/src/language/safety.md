@@ -89,6 +89,8 @@ Each one is shown on the page for its feature, with the compiler's hint.
 
 Debug builds carry DWARF debug info, so `lldb ./app` sets breakpoints by Helix file and line,
 and `frame variable` shows locals with their Helix names and types.
+A breakpoint on `helix.panic` stops the program at a panic, with the line that caused it one frame up.
+See [Debugging](/projects/debugging).
 
 ## See also
 
