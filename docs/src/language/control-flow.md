@@ -88,6 +88,24 @@ Write `while (const x = try it.next()) { ... }` instead.
 ## switch
 
 A `switch` has no fallthrough, so no `break` is needed, and cases are tried from top to bottom.
+The statement form runs the first case that matches, and stacked empty cases mean either:
+
+```hx
+switch (code) {
+    case 0:
+        println("ok");
+    case 1: // [!code highlight:2]
+    case 2:
+        println("warning");
+    default:
+        println("unknown");
+}
+```
+
+- `default` is tried last, wherever it is written.
+- Each case has a scope of its own.
+- `break` inside a `switch` leaves the loop around it, not the `switch`.
+
 The expression form gives each case one value:
 
 ```hx

@@ -129,12 +129,12 @@ and the script reads the first two as `b.target` and `b.mode`.
 | `step(name, description)`                                                    | a step of its own, and `dependOn(other)` orders steps                        |
 | `addSystemCommand(argv)`                                                     | a step that runs a program                                                   |
 
-| Artifact member | Does |
-|-----------------|------|
+| Artifact member                 | Does                                                |
+|---------------------------------|-----------------------------------------------------|
 | `addCSources({ files, flags })` | C files compiled for the artifact's target and mode |
-| `addIncludeDir(path)` | an include folder for its C |
-| `linkSystemLibrary(name)` | links `-l<name>` |
-| `addOptions(options)` | lets it import an options module |
+| `addIncludeDir(path)`           | an include folder for its C                         |
+| `linkSystemLibrary(name)`       | links `-l<name>`                                    |
+| `addOptions(options)`           | lets it import an options module                    |
 
 `target: "native"` builds for this machine whatever `--target` says, which suits a code generator that runs during
 the build.
@@ -147,6 +147,10 @@ the build.
   `"greet" is a program in helix.jsonc's "bin"`.
   The same program for another target or mode is a new artifact, as the `release` step above shows.
 - `b.bin(name)` of a name that isn't in `bin` is an error.
+- Asking again for an executable with the same name, target, mode, and root gives the same artifact, built once.
+  The same name, target, and mode from another root is an error.
+- `run` and `test` are defaults: `addRunStep` and `addTestStep` replace them.
+  Any other step added twice under one name is an error.
 - A dependency's `build.hx` never runs: a package is built from its `helix.jsonc` alone.
 
 ## How it runs
@@ -155,6 +159,15 @@ the build.
 The `build` function only records artifacts and steps.
 The runner then performs the steps that the command line names, each one's dependencies first,
 by starting `helix` and `helix cc`.
+
+## Where things go
+
+| Path                                      | What                                                          |
+|-------------------------------------------|---------------------------------------------------------------|
+| `.helix-cache/build`                      | the compiled `build.hx` and its runner                        |
+| `.helix-cache/bin/<target>/<mode>/<name>` | each executable, with `.exe` for Windows and `.wasm` for WASI |
+| `helix-out/bin`                           | what `install` copies, and the programs of `bin`              |
+| `helix-out/<dir>`                         | what an `addInstall(artifact, dir)` step copies               |
 
 ## See also
 

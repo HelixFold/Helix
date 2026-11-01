@@ -142,16 +142,17 @@ linked, so one file can call each platform's functions.
 
 ## Builtins
 
-| Builtin                                      | Gives                                                        |
-|----------------------------------------------|--------------------------------------------------------------|
-| `@sizeOf(T)`, `@alignOf(T)`                  | the size and alignment of a type, in bytes                   |
-| `@truncate(T, x)`                            | the low bits of `x` as a `T`                                 |
-| `@panic(message)`                            | stops the program with a message                             |
-| `@compileError(message)`, `@compileLog(...)` | as above                                                     |
-| `@errorName(e)`                              | an error's name, as a C string                               |
-| `@ptrCast(T, p)`                             | `p` reinterpreted as a `T`, only inside `unsafe`             |
-| `@ptrFromInt(T, n)`, `@intFromPtr(p)`        | an address as a pointer, and back                            |
-| `@volatileLoad(p)`, `@volatileStore(p, v)`   | reads and writes that the optimizer keeps exactly as written |
+| Builtin                                      | Gives                                                                         |
+|----------------------------------------------|-------------------------------------------------------------------------------|
+| `@sizeOf(T)`, `@alignOf(T)`                  | the size and alignment of a type, in bytes                                    |
+| `@truncate(T, x)`                            | the low bits of `x` as a `T`                                                  |
+| `@panic(message)`                            | stops the program with a message                                              |
+| `@compileError(message)`, `@compileLog(...)` | as above                                                                      |
+| `@errorName(e)`                              | an error's name, as a C string                                                |
+| `@enumFromInt(E, n)`                         | the member of the enum `E` whose value is `n`, checked when `n` is a constant |
+| `@ptrCast(T, p)`                             | `p` reinterpreted as a `T`, only inside `unsafe`                              |
+| `@ptrFromInt(T, n)`, `@intFromPtr(p)`        | an address as a pointer, and back                                             |
+| `@volatileLoad(p)`, `@volatileStore(p, v)`   | reads and writes that the optimizer keeps exactly as written                  |
 
 ## See also
 

@@ -26,6 +26,10 @@ Targets are written `arch-os[-abi]`, and `native` is this machine.
 
 `usize` and pointers are as wide as the target's: 32 bits on `wasm32`.
 
+- Linux targets default to `-musl`, and Windows targets to `-gnu`.
+- `riscv64` is `rv64gc` with doubles in float registers (`lp64d`), as clang and Linux distributions assume.
+- `-linux-gnu` (glibc) compiles to an object file with `--emit obj`, but doesn't link yet.
+
 ## The toolchain
 
 `helix` doesn't run the system's `cc`, `ld`, `xcrun`, or `dsymutil`.
@@ -40,6 +44,11 @@ dsymutil.
   Helix makes their import libraries itself, so there is nothing else to install.
 - **WASI** programs link against wasi-libc, built from source like musl.
   `wasmtime app.wasm` runs one, and so does Node's WASI.
+  A WASI program can't start other programs or read its own call stack,
+  so a panic prints its message and traps, and the host prints the stack.
+- **System libraries** of the machine that builds, such as `-lz`, can't go into a program for another machine.
+  Build the library from source as a package's C instead.
+  musl's own `-lm`, `-lpthread`, and `-ldl` work, since they are part of its `libc.a`.
 ::: warning 🍎 The macOS SDK
 Apple's SDK can't be shipped with Helix, so building for macOS from Linux needs `SDKROOT` to point at a copy.
 CI does this with the `macos-sdk` option of `.github/actions/setup-helix`.
@@ -99,7 +108,10 @@ qemu-system-riscv64 -machine virt -bios none -nographic -kernel kernel
 :::
 
 - `_start` sets up the stack, zeroes `.bss`, and calls `main`, which takes no `Init`.
-- The default memory layout is QEMU's `virt` board, and `--linker-script board.ld` gives another.
+- The default memory layout is QEMU's `virt` board: riscv64 at `0x80000000`, aarch64 at `0x40080000`,
+  and x86_64 at 1 MiB for a bootloader such as Limine.
+  `--linker-script board.ld` gives another, which must define `__stack_top`, `__bss_start`, and `__bss_end`.
+- The code is static, and riscv64 uses the `medany` model, so code linked anywhere is reachable.
 - `@volatileLoad` and `@volatileStore` read and write hardware registers exactly as written.
 - There is no heap unless the program brings one, and `helix test` needs an OS.
 
@@ -142,6 +154,7 @@ A firmware package names its chip once in `helix.jsonc`, and every build follows
 - An interrupt handler is an `export extern "C"` function, `SysTick_Handler` or `IRQ28_Handler`, and one left
   undefined reports itself: `unhandled interrupt: IRQ5 (define IRQ5_Handler)`.
 - Floats and 64-bit numbers on cores without hardware support go through compiler-rt.
+- A fault prints its status registers and the address of the instruction.
 
 ### Registers from an SVD file
 
@@ -167,6 +180,7 @@ export function main(): void {
 ```
 
 Each register's fields are an enum that the compiler checks against that register.
+Peripherals with the same registers share a type, and 8-bit and 16-bit registers are accessed at their width.
 An access folds to one volatile load or store with a constant mask, and only what a program uses is compiled.
 
 ## See also

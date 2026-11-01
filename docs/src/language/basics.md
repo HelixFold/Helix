@@ -1,6 +1,6 @@
 # Basics
 
-This page covers bindings, the built-in types, printing, casts, and the operators.
+This page covers comments, bindings, the built-in types, printing, casts, and the operators.
 
 ## A complete example
 
@@ -20,6 +20,26 @@ export function main(): void {
 }
 ```
 
+## Comments
+
+```hx
+// a line comment
+
+/* a block comment */
+/* blocks /* nest */ correctly */
+
+/**
+ * A doc comment, in TSDoc style, describes the declaration after it.
+ *
+ * @param a - The first number
+ * @param b - The second number
+ * @returns The sum of `a` and `b`
+ */
+export function add(a: i32, b: i32): i32 {
+    return a + b;
+}
+```
+
 ## Bindings
 
 | Form                            | Meaning                                                      |
@@ -33,6 +53,40 @@ There is no `var`.
 A global's value must be known while compiling, since Helix runs no code before `main`.
 Literals, and struct and array literals of constants, qualify on their own, and anything that calls a function says so
 with `comptime f()` (see [Compile Time](/language/comptime)).
+
+### Numbers without a type
+
+An integer literal has no fixed type until it meets one.
+A `const` can stay a compile-time number, `const KiB = 1024;`,
+but a `let` needs a concrete type, since a variable at run time has to have a size:
+
+```hx
+let n = 0;              // no type to give it // [!code --]
+let n: i32 = 0; // [!code ++]
+```
+
+```text
+error: can't tell which number type `n` should be
+  = hint: write the type: `let n: i32 = ...`
+```
+
+### Ignoring results
+
+Calling a function that returns `void` is a plain statement.
+Leaving any other result unused is an error, unless `void` drops it on purpose:
+
+| The function returns          | `f();`   | To drop the result                  |
+|-------------------------------|----------|-------------------------------------|
+| `void`                        | allowed  | nothing to drop                     |
+| a value, such as `i32`        | an error | `void f();`                         |
+| a value or an error, `T \| E` | an error | `void try f();`, or `f() catch ...` |
+
+`void` drops values, not errors, so a call that can fail still needs a `try` or a `catch`:
+
+```text
+error: `void` discards values, not errors
+  = hint: handle the error: `void try f()` or `f() catch ...`
+```
 
 ## Types
 
@@ -91,18 +145,18 @@ Narrowing, sign changes, and conversions between integers and floats always take
 
 ## Operators
 
-| Kind | Operators |
-|------|-----------|
-| Arithmetic | `+ - * / %`, overflow-checked in safe modes |
-| Wrapping | `+% -% *%` |
-| Saturating | `+\| -\| *\|` |
-| Compare | `== != < <= > >=` |
-| Logic | `&& \|\| !` |
-| Bitwise | `& \| ^ ~ << >>` |
-| Optional | `??`, `?.`, and the postfix unwrap `!` |
-| Pointer | `&x` takes an address, `*p` dereferences, and `p.field` dereferences by itself |
-| Ternary | `cond ? a : b` |
-| Increment | `i++` and `i--`, as statements only |
+| Kind       | Operators                                                                      |
+|------------|--------------------------------------------------------------------------------|
+| Arithmetic | `+ - * / %`, overflow-checked in safe modes                                    |
+| Wrapping   | `+% -% *%`                                                                     |
+| Saturating | `+\| -\| *\|`                                                                  |
+| Compare    | `== != < <= > >=`                                                              |
+| Logic      | `&& \|\| !`                                                                    |
+| Bitwise    | `& \| ^ ~ << >>`                                                               |
+| Optional   | `??`, `?.`, and the postfix unwrap `!`                                         |
+| Pointer    | `&x` takes an address, `*p` dereferences, and `p.field` dereferences by itself |
+| Ternary    | `cond ? a : b`                                                                 |
+| Increment  | `i++` and `i--`, as statements only                                            |
 
 ```hx
 const max: u8 = 255;
@@ -116,19 +170,57 @@ println(`${(0b1100 & 0b1010) == 0b1000}`);          // true
 - Bitwise operators bind tighter than comparisons, so `flags & Mask == 0` means `(flags & Mask) == 0`, unlike C.
 - Comparisons do not chain: `a < b < c` is an error.
 
+### Precedence
+
+From the tightest to the loosest:
+
+| Level | Operators                              | Notes                                        |
+|-------|----------------------------------------|----------------------------------------------|
+| 1     | `f()` `a[i]` `a[i..j]` `.x` `?.x` `x!` | postfix                                      |
+| 2     | `-` `!` `~` `&` `*` `?` `try`          | prefix                                       |
+| 3     | `as`                                   | `a * b as u64` is `a * (b as u64)`           |
+| 4     | `*` `/` `%` `*%` `*\|`                 |                                              |
+| 5     | `+` `-` `+%` `-%` `+\|` `-\|`          |                                              |
+| 6     | `<<` `>>`                              |                                              |
+| 7     | `&`                                    | tighter than comparisons, unlike C           |
+| 8     | `^`                                    |                                              |
+| 9     | `\|`                                   |                                              |
+| 10    | `==` `!=` `<` `<=` `>` `>=`            | they don't chain                             |
+| 11    | `&&`                                   |                                              |
+| 12    | `\|\|`                                 |                                              |
+| 13    | `??`                                   | right-associative                            |
+| 14    | `catch`                                |                                              |
+| 15    | `? :`                                  | right-associative                            |
+| 16    | `comptime` `throw` `void`              | apply to the whole expression on their right |
+
+### Reading generics
+
+- `Name<...>` in an expression is a generic only when the `>` is followed by `.`, `(`, `{`, `)`, `,`, `;`, or `]`:
+  `ArrayList<u8>.init(a)` is generic, and `a < b && c > d` is two comparisons.
+- `Name { ... }` is a struct literal.
+  `if`, `while`, `for`, and `switch` wrap their condition in parentheses, so a block after them is never read as one.
+- `let list: ArrayList<u8>= x` reads `>=` as one operator, and the compiler asks for a space:
+
+```text
+error: `>=` here is read as one operator
+  = hint: add a space between `>` and `=`
+```
+
 ## Rules the compiler enforces
 
 These never compile:
 
-| Rule                           | Example                                    | Error                             |
-|--------------------------------|--------------------------------------------|-----------------------------------|
-| No unused locals or parameters | `const temp = 5;` never read               | unused local `temp`               |
-| No ignored results             | `compute();`                               | the result of `compute` is unused |
-| No truthiness                  | `if (count)`                               | expected `bool`, found `i32`      |
-| No implicit narrowing          | `const b: u8 = count;`                     | expected `u8`, found `i32`        |
-| `let` must change              | `let n: i32 = 1;`, never assigned          | `n` is never reassigned           |
-| No shadowing                   | `const x` declared again in a nested block | `x` is already declared           |
-| No dead code                   | a statement after `return`                 | unreachable code                  |
+| Rule                           | Example                                    | Error                                                   |
+|--------------------------------|--------------------------------------------|---------------------------------------------------------|
+| No unused locals or parameters | `const temp = 5;` never read               | unused local `temp`                                     |
+| No ignored results             | `compute();`                               | the result of `compute` is unused                       |
+| No truthiness                  | `if (count)`                               | expected `bool`, found `i32`                            |
+| No implicit narrowing          | `const b: u8 = count;`                     | expected `u8`, found `i32`                              |
+| `let` must change              | `let n: i32 = 1;`, never assigned          | `n` is never reassigned                                 |
+| No shadowing                   | `const x` declared again in a nested block | `x` is already declared                                 |
+| No dead code                   | a statement after `return`                 | unreachable code                                        |
+| Every path returns             | a branch without a `return`                | `f` can reach its end without returning a `i32`         |
+| No struct inside itself        | `struct Node { next: Node }`               | `Node` contains itself, so it would be infinitely large |
 
 A name that starts with `_` is exempt from the unused checks: `function f(_reserved: i32)`.
 Each error comes with a hint, and the fix is usually one word:
