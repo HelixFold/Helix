@@ -950,7 +950,7 @@ enum StepKind {
     Group,
 
     /**
-     * A step that builds an artifact and copies it into a folder of `helix-out`.
+     * A step that builds an artifact and copies it into a folder of `.helix-out`.
      *
      * @since 1.0.0
      */
@@ -1034,7 +1034,7 @@ struct StepData {
     test: TestOptions,
 
     /**
-     * The command line of a command step, or the folder in `helix-out` as the one word of an install step.
+     * The command line of a command step, or the folder in `.helix-out` as the one word of an install step.
      *
      * @since 1.0.0
      */
@@ -1654,7 +1654,7 @@ export struct Build {
     }
 
     /**
-     * Makes the default `install` step copy an artifact into `helix-out/bin/`.
+     * Makes the default `install` step copy an artifact into `.helix-out/bin/`.
      *
      * @param this - The build
      * @param artifact - The artifact to install
@@ -1665,7 +1665,7 @@ export struct Build {
      *
      * @example
      * ```hx
-     * try b.install(tool); // helix build puts tool in helix-out/bin/
+     * try b.install(tool); // helix build puts tool in .helix-out/bin/
      * ```
      *
      * @since 1.0.0
@@ -1677,11 +1677,11 @@ export struct Build {
     }
 
     /**
-     * Adds a step that builds an artifact and copies it into a folder under `helix-out/`.
+     * Adds a step that builds an artifact and copies it into a folder under `.helix-out/`.
      *
      * @param this - The build
      * @param artifact - The artifact to install
-     * @param dir - The folder under `helix-out/`
+     * @param dir - The folder under `.helix-out/`
      * @returns The unnamed step, for a step of its own to depend on
      *
      * @remarks
@@ -1691,7 +1691,7 @@ export struct Build {
      * @example
      * ```hx
      * const release = try b.step("release", "Build the release");
-     * try release.dependOn(try b.addInstall(app, "release/x86_64-linux")); // helix-out/release/x86_64-linux/app
+     * try release.dependOn(try b.addInstall(app, "release/x86_64-linux")); // .helix-out/release/x86_64-linux/app
      * ```
      *
      * @since 1.0.0
@@ -2092,7 +2092,7 @@ function artifactOptions(b: *Build, index: usize, target: ?string, mode: Mode, a
  * @remarks
  * A step that this run already performed does nothing.
  * - **Group** - nothing beyond its dependencies
- * - **Install** - builds the artifact and copies it to `helix-out/<dir>/`
+ * - **Install** - builds the artifact and copies it to `.helix-out/<dir>/`
  * - **Run** - builds the artifact and runs it with the arguments after `--`,
  *   ending the process with the status of the program when that status is not 0
  * - **Test** - runs `helix test <root> --mode <mode>`, with `--target` and the code of `linkWith` when set
@@ -2110,7 +2110,7 @@ function make(b: *Build, index: usize): void | Error {
         case StepKind.Install: {
             try buildArtifact(b, step.artifact);
             const art = b.artifacts.items[step.artifact];
-            const dir = try fmt.alloc(b.a, `helix-out/${step.argv[0]}`);
+            const dir = try fmt.alloc(b.a, `.helix-out/${step.argv[0]}`);
             try fs.makePath(dir);
             const installed = try fmt.alloc(b.a, `${dir}/${art.name}${executableSuffix(art.target)}`);
             try fs.copyFile(art.output, installed);
@@ -2264,7 +2264,7 @@ export function runBuild(init: Init, build: (b: *Build) => void | Error): u8 | E
         steps: ArrayList<StepData>.init(a), compiled: ArrayList<string>.init(a), defaults: ArrayList<usize>.init(a),
     };
     void try b.addStep(StepData {
-        name: "install", description: "Build everything `install`ed into helix-out/ (the default)", kind: StepKind.Group,
+        name: "install", description: "Build everything `install`ed into .helix-out/ (the default)", kind: StepKind.Group,
         artifact: 0, test: TestOptions { root: "" }, argv: [], deps: ArrayList<usize>.init(a), done: false,
     });
     try readPackages(&b, init.args[1]);
