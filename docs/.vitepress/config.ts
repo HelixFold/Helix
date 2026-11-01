@@ -13,7 +13,7 @@ export default defineVersionedConfig({
     base: '/Helix/',
     description: 'A systems language with TypeScript syntax, no hidden control flow, and explicit allocators',
     head: [
-        [ 'link', { rel: 'icon', type: 'image/svg+xml', href: '/Helix/logo.svg' }],
+        [ 'link', { rel: 'icon', type: 'image/png', href: '/Helix/logo.png' }],
         [ 'meta', { name: 'theme-color', content: '#bd34fe' }]
     ],
     markdown: {
@@ -27,7 +27,7 @@ export default defineVersionedConfig({
         versionSwitcher: false
     },
     themeConfig: {
-        logo: '/logo.svg',
+        logo: '/logo.png',
 
         search: {
             provider: 'local'

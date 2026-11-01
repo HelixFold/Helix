@@ -17,7 +17,7 @@ hero:
           text: View on GitHub
           link: https://github.com/HelixFold/Helix
     image:
-        src: /logo.svg
+        src: /logo.png
         alt: 'Helix logo'
 features:
     - icon: 🧩
