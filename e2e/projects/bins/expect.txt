@@ -2,7 +2,7 @@
 # (b.bin), and --target / --mode are the runner's own flags.
 $ build run
 hello from greet
-$ build run -Dgreeting=hi
+$ build run --greeting=hi
 hi from greet
 $ build test
 PASS src/main.spec.hx
