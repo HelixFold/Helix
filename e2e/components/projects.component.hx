@@ -112,7 +112,7 @@ function runScript(run: *Run, project: string, dir: string, script: string): voi
  * @returns `true` when the command exits with 0 and prints every wanted line
  *
  * @remarks
- * The command runs in the copy, so `helix-out` and the caches that it makes stay out of the repository.
+ * The command runs in the copy, so `.helix-out` and the caches that it makes stay out of the repository.
  *
  * @since 1.0.0
  */
@@ -219,7 +219,7 @@ export function build(b: *Build): void | Error {
     }
     const release: string[6] = ["build", "release", "--target", "x86_64-linux", "--mode", "release-safe"];
     const built = try helix(run, &release, dir);
-    const exe = try text(run, `${dir}/helix-out/release/app`);
+    const exe = try text(run, `${dir}/.helix-out/release/app`);
     if (built.status != 0 || ((try elfMachine(run, exe, 64)) ?? 0) != ElfX86) {
         fail(run, "build.hx without helix.jsonc", "build release: not an x86-64 Linux executable", built.stderr);
         return;

@@ -15,7 +15,7 @@ import { ArrayList } from "std/list";
  *
  * @example
  * ```hx
- * let run = Run { a, compiler: "/repo/helix-out/bin/helix", filter: "", temp: "/tmp/helix-e2e-42", ... };
+ * let run = Run { a, compiler: "/repo/.helix-out/bin/helix", filter: "", temp: "/tmp/helix-e2e-42", ... };
  * pass(&run, "e2e/programs/hello.hx", "debug");
  * run.passed; // 1
  * ```
@@ -45,7 +45,7 @@ export struct Run {
      *
      * @example
      * ```hx
-     * run.compiler; // "/repo/helix-out/bin/helix"
+     * run.compiler; // "/repo/.helix-out/bin/helix"
      * ```
      *
      * @since 1.0.0

@@ -539,7 +539,7 @@ export function onMac(): bool {
  *
  * @example
  * ```hx
- * try absolute(&run, "helix-out/bin/helix"); // "/repo/helix-out/bin/helix"
+ * try absolute(&run, ".helix-out/bin/helix"); // "/repo/.helix-out/bin/helix"
  * ```
  *
  * @since 1.0.0
@@ -611,7 +611,7 @@ export function deleteFolder(dir: string): void | Error {
  * @returns Nothing, or the error that stopped the copy
  *
  * @remarks
- * It leaves out `helix-out` and `.helix-cache`, which a build of a project leaves behind.
+ * It leaves out `.helix-out` and `.helix-cache`, which a build of a project leaves behind.
  *
  * @example
  * ```hx
@@ -626,7 +626,7 @@ export function copyTree(run: *Run, from: string, to: string): void | Error {
     let folder = try Dir.open(from);
     defer folder.close();
     while (const name = try folder.next()) {
-        if (equal(name, "helix-out") || equal(name, ".helix-cache")) continue;
+        if (equal(name, ".helix-out") || equal(name, ".helix-cache")) continue;
         const source = try text(run, `${from}/${name}`);
         const target = try text(run, `${to}/${name}`);
         if ((try stat(source)).kind == Kind.Directory) {
