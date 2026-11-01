@@ -12,6 +12,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-helix
+        with:
+          macos-sdk: "true"   # the e2e projects also build for macOS
 
-      - run: helix build
-      - run: helix build test   # the specs, run by the compiler this build made
+      - name: Build the compiler
+        run: helix build
+
+      - name: Run the specs with the new compiler
+        run: helix build test
+
+      - name: Check the e2e snippets with the new compiler
+        run: helix build e2e
