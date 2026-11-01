@@ -79,6 +79,7 @@ export default defineVersionedConfig({
                 { text: 'Release Notes', link: '/release' },
                 {
                     text: 'Language',
+                    collapsed: true,
                     items: [
                         { text: 'Basics', link: '/language/basics' },
                         { text: 'Functions', link: '/language/functions' },
@@ -96,6 +97,7 @@ export default defineVersionedConfig({
                 },
                 {
                     text: 'Projects',
+                    collapsed: true,
                     items: [
                         { text: 'helix.jsonc', link: '/projects/manifest' },
                         { text: 'build.hx', link: '/projects/build' },
@@ -105,6 +107,7 @@ export default defineVersionedConfig({
                 },
                 {
                     text: 'Reference',
+                    collapsed: true,
                     items: [
                         { text: 'Command Line', link: '/reference/cli' },
                         { text: 'Standard Library', link: '/reference/std' }
