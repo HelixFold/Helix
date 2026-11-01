@@ -1,0 +1,5 @@
+{
+  "name": "cabi",
+  "version": "0.1.0",
+  "module": { "root": "src/main.hx" }
+}

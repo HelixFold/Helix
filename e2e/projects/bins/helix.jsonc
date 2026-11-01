@@ -1,0 +1,6 @@
+{
+  "name": "bins",
+  "version": "0.1.0",
+  // the programs live here; build.hx only adds to them
+  "bin": { "greet": "src/main.hx" },
+}
