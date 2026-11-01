@@ -3,7 +3,7 @@
 .helix-cache/
 
 # Build directories
-helix-out/
+.helix-out/
 
 # Debug symbols (macOS puts them in .dSYM folders)
 *.dSYM/
