@@ -178,18 +178,18 @@ export function llvmTool(name: string): ?string {
 }
 
 /**
- * Finds an LLVM tool such as `ld.lld`, `ld64.lld`, `wasm-ld`, or `dsymutil`.
+ * Finds an LLVM tool such as `dsymutil` or `clang`.
  *
  * @param name - The name of the tool
  * @returns The path of the tool, or `null` when it is nowhere
  *
  * @remarks
  * It looks next to the LLVM that Helix links with {@link llvmTool} first,
- * then in `/opt/homebrew/bin`, where the Homebrew lld package puts its linkers.
+ * then in `/opt/homebrew/bin`, where Homebrew's lld package puts its programs.
  *
  * @example
  * ```hx
- * findTool("ld64.lld"); // "/opt/homebrew/bin/ld64.lld"
+ * findTool("dsymutil"); // "/opt/homebrew/Cellar/llvm/<version>/bin/dsymutil"
  * ```
  *
  * @see llvmTool
@@ -204,39 +204,39 @@ export function findTool(name: string): ?string {
 }
 
 /**
- * Adds the command of a linker to an argument list.
+ * Finds the folder of lld's libraries, which a compiler linked to a shared LLVM links as well.
  *
- * @param args - The argument list that gets the command
- * @param name - The linker, `ld.lld`, `ld64.lld`, or `wasm-ld`
- * @returns `true` when the linker or lld was found, `false` when neither was
+ * @returns The folder, or `null` when lld's libraries are nowhere
  *
  * @remarks
- * It adds the linker itself when {@link findTool} finds it.
- * Otherwise it adds lld with `-flavor` and the flavor the name stands for, `darwin`, `wasm`, or `gnu`.
- * A Windows release ships lld in that form,
- * since Windows has no links and a copy of lld for each name would take 75 MB.
+ * It is the folder of {@link llvmLibDir} when lld's libraries are there.
+ * Otherwise it is the `lib` folder next to the `lld` program that {@link findTool} finds,
+ * where Homebrew, which installs lld apart from LLVM, keeps them.
+ * A compiler built against the toolchain's static LLVM doesn't need it, since the archives of lld are in that folder.
  *
  * @example
  * ```hx
- * let args = strings();
- * addLinker(&args, "ld64.lld"); // true, args is [ "/opt/homebrew/bin/ld64.lld" ]
+ * lldLibDir(); // "/opt/homebrew/Cellar/lld/<version>/lib"
  * ```
+ *
+ * @see findTool
+ * @see llvmLibDir
  *
  * @since 1.0.0
  */
 
-export function addLinker(args: *Strings, name: string): bool {
-    if (const tool = findTool(name)) {
-        add(args, tool);
-        return true;
+export function lldLibDir(): ?string {
+    if (const lib = llvmLibDir()) {
+        if (os.exists(allocCString(`${lib}/liblldCommon.a`)) || os.exists(allocCString(`${lib}/liblldCommon.dylib`))) return lib;
     }
-    if (const lld = findTool("lld")) {
-        add(args, lld);
-        add(args, "-flavor");
-        add(args, equal(name, "ld64.lld") ? "darwin" : equal(name, "wasm-ld") ? "wasm" : "gnu");
-        return true;
+    if (const tool = findTool("lld")) {
+        if (const lld = os.realPath(tool)) {   // <prefix>/bin/lld, with lld's libraries in <prefix>/lib
+            const bin = lld[0..os.lastIndex(lld, '/') ?? 0];
+            const prefix = bin[0..os.lastIndex(bin, '/') ?? 0];
+            if (os.exists(allocCString(`${prefix}/lib/liblldCommon.dylib`))) return allocCString(`${prefix}/lib`);
+        }
     }
-    return false;
+    return null;
 }
 
 /**
