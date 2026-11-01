@@ -5,6 +5,7 @@
 import * as fmt from "std/fmt";
 import { ArrayList } from "std/list";
 import { alloc, cAllocator } from "std/heap";
+import { target, Os, Arch } from "std/target";
 import * as sys from "@modules/driver/bindings/sys.binding";
 import * as os from "@modules/driver/components/os.component";
 import { hxFatalMessage } from "@components/memory.component";
@@ -123,6 +124,8 @@ export function linkedLlvmLibDir(): ?string {
  * A release has LLVM linked in and its tools in `lib/llvm/bin`, so its folder is `lib/llvm/lib` next to the compiler.
  * A compiler built from the repository has no `lib/llvm` of its own,
  * so it takes the LLVM that the toolchain installs in `$HELIX_HOME/llvm`, with its tools in `$HELIX_HOME/llvm/bin`.
+ * Next comes the toolchain of the platform that the compiler runs on, `$HELIX_HOME/llvm/<platform>/lib`,
+ * which a compiler that links that toolchain's static LLVM finds no other way.
  * Otherwise it is the folder of the libclang that the compiler is linked to, from {@link linkedLlvmLibDir}.
  * {@link llvmTool} finds the LLVM tools next to it.
  *
@@ -139,7 +142,31 @@ export function llvmLibDir(): ?string {
     if (const shipped = os.besideCompiler("lib/llvm/lib")) return shipped;
     const installed = allocCString(`${os.helixHome("llvm")}/lib`);
     if (os.readable(allocCString(`${installed}/clang`))) return installed;
+    const own = allocCString(`${os.helixHome("llvm")}/${hostPlatform()}/lib`);
+    if (os.readable(allocCString(`${own}/clang`))) return own;
     return linkedLlvmLibDir();
+}
+
+/**
+ * Names the platform that the compiler runs on, as a toolchain folder is named.
+ *
+ * @returns The platform, such as `aarch64-macos`
+ *
+ * @remarks
+ * It comes from `std/target`, which is the target that the compiler itself was built for.
+ *
+ * @example
+ * ```hx
+ * hostPlatform(); // "aarch64-macos" on an Apple-silicon Mac
+ * ```
+ *
+ * @since 1.0.0
+ */
+
+export function hostPlatform(): string {
+    const arch = target.arch == Arch.X86_64 ? "x86_64" : "aarch64";   // arm64e runs aarch64 programs
+    const system = target.os == Os.Macos ? "macos" : target.os == Os.Windows ? "windows" : "linux";
+    return allocCString(`${arch}-${system}`);
 }
 
 /**
