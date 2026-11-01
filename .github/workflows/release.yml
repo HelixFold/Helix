@@ -6,7 +6,7 @@ on:
   workflow_dispatch:   # builds and checks every platform without publishing
 
 jobs:
-  # Every platform, built on Linux by build.hx's `release` step into helix-out/release/<target>.
+  # Every platform, built on Linux by build.hx's `release` step into .helix-out/release/<target>.
   build:
     runs-on: ubuntu-24.04
     steps:
@@ -15,11 +15,16 @@ jobs:
         with:
           macos-sdk: true
 
-      - run: helix build release
+      # The bootstrap's std/build installs into helix-out, so the new compiler builds itself into .helix-out first.
+      - run: |
+          helix build
+          if [ ! -x .helix-out/bin/helix ]; then helix-out/bin/helix build; fi
+          .helix-out/bin/helix build release
       - uses: actions/upload-artifact@v7
         with:
           name: release
-          path: helix-out/release/
+          path: .helix-out/release/
+          include-hidden-files: true   # .helix-out starts with a dot
 
   # Each platform's binary, run on that platform.
   check:
