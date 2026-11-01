@@ -979,7 +979,15 @@ enum StepKind {
      * @since 1.0.0
      */
 
-    Command
+    Command,
+
+    /**
+     * A step that copies a file or a folder of the project into a folder of `.helix-out`.
+     *
+     * @since 1.0.0
+     */
+
+    Copy
 }
 
 /**
@@ -1034,7 +1042,8 @@ struct StepData {
     test: TestOptions,
 
     /**
-     * The command line of a command step, or the folder in `.helix-out` as the one word of an install step.
+     * The command line of a command step, the folder in `.helix-out` as the one word of an install step,
+     * or what a copy step copies and the folder in `.helix-out` that it copies into.
      *
      * @since 1.0.0
      */
@@ -1708,6 +1717,57 @@ export struct Build {
     }
 
     /**
+     * Adds a step that copies a file into a folder under `.helix-out/`.
+     *
+     * @param this - The build
+     * @param path - The file, relative to the project or absolute
+     * @param dir - The folder under `.helix-out/`, where the file keeps its name
+     * @returns The unnamed step, for a step of its own to depend on
+     *
+     * @remarks
+     * The copy keeps the permissions, so a program stays one, and a link is copied as the file that it points to.
+     * The step runs only when a named step depends on it.
+     *
+     * @example
+     * ```hx
+     * const release = try b.step("release", "Build the release");
+     * try release.dependOn(try b.addInstallFile("LICENSE", "release")); // .helix-out/release/LICENSE
+     * ```
+     *
+     * @since 1.0.0
+     */
+
+    addInstallFile(this: *Build, path: string, dir: string): Step | Error {
+        return addCopy(this, path, dir);
+    }
+
+    /**
+     * Adds a step that copies a folder and everything in it into a folder under `.helix-out/`.
+     *
+     * @param this - The build
+     * @param path - The folder, relative to the project or absolute
+     * @param dir - The folder under `.helix-out/` that gets what `path` holds
+     * @returns The unnamed step, for a step of its own to depend on
+     *
+     * @remarks
+     * The step first deletes `dir`, so nothing that an earlier build left there stays.
+     * Links are copied as what they point to.
+     * The step runs only when a named step depends on it.
+     *
+     * @example
+     * ```hx
+     * const release = try b.step("release", "Build the release");
+     * try release.dependOn(try b.addInstallFolder("lib/std", "release/lib/std")); // .helix-out/release/lib/std/...
+     * ```
+     *
+     * @since 1.0.0
+     */
+
+    addInstallFolder(this: *Build, path: string, dir: string): Step | Error {
+        return addCopy(this, path, dir);
+    }
+
+    /**
      * Adds the `run` step, which builds an artifact and runs it with the arguments after `--`.
      *
      * @param this - The build
@@ -1957,6 +2017,51 @@ function executableSuffix(target: ?string): string {
 }
 
 /**
+ * Records a copy step, which decides when it runs whether it copies a file or a folder.
+ *
+ * @param b - The build
+ * @param path - What to copy
+ * @param dir - The folder under `.helix-out/`
+ * @returns The unnamed step
+ *
+ * @remarks
+ * {@link Build.addInstallFile} and {@link Build.addInstallFolder} are its two names.
+ *
+ * @since 1.0.0
+ */
+
+function addCopy(b: *Build, path: string, dir: string): Step | Error {
+    const argv = try alloc<string>(b.a, 2);
+    argv[0] = path;
+    argv[1] = dir;
+    const index = try b.addStep(StepData {
+        name: "", description: "", kind: StepKind.Copy, artifact: 0, test: TestOptions { root: "" },
+        argv, deps: ArrayList<usize>.init(b.a), done: false,
+    });
+    return Step { b, index };
+}
+
+/**
+ * The name of a file without the folders before it.
+ *
+ * @param path - A path with `/` between its parts
+ * @returns What follows the last `/`, or the whole path without one
+ *
+ * @remarks
+ * The copy step names the copy of a file after it.
+ *
+ * @since 1.0.0
+ */
+
+function baseName(path: string): string {
+    let start: usize = 0;
+    for (const c, i of path) {
+        if (c == '/') start = i + 1;
+    }
+    return path[start..];
+}
+
+/**
  * Copies a folder and everything in it.
  *
  * @param b - The build, whose allocator holds the paths
@@ -1965,7 +2070,8 @@ function executableSuffix(target: ?string): string {
  * @returns Nothing, or the error that stopped the copy
  *
  * @remarks
- * The install step uses it for the `.dSYM` folder in which macOS keeps the debug info of a program.
+ * The install step uses it for the `.dSYM` folder in which macOS keeps the debug info of a program,
+ * and the copy step for a folder that the build installs.
  *
  * @since 1.0.0
  */
@@ -2127,6 +2233,7 @@ function artifactOptions(b: *Build, index: usize, target: ?string, mode: Mode, a
  *   ending the process with the status of the program when that status is not 0
  * - **Test** - runs `helix test <root> --mode <mode>`, with `--target` and the code of `linkWith` when set
  * - **Command** - runs the command line
+ * - **Copy** - copies a file into `.helix-out/<dir>/`, or a folder's contents into a fresh `.helix-out/<dir>/`
  *
  * @since 1.0.0
  */
@@ -2175,6 +2282,21 @@ function make(b: *Build, index: usize): void | Error {
             try command(b, argv.items);
         }
         case StepKind.Command: try command(b, step.argv);
+        case StepKind.Copy: {
+            if (!fs.exists(step.argv[0])) {
+                eprintln(`error: can't copy ${step.argv[0]} into .helix-out/${step.argv[1]}: it doesn't exist`);
+                throw BuildError.StepFailed;
+            }
+            const dir = try fmt.alloc(b.a, `.helix-out/${step.argv[1]}`);
+            if ((try fs.stat(step.argv[0])).kind == fs.Kind.Directory) {
+                if (fs.exists(dir)) try fs.deleteTree(dir);   // nothing that an earlier build left stays
+                try copyFolder(b, step.argv[0], dir);
+            } else {
+                try fs.makePath(dir);
+                try fs.copyFile(step.argv[0], try fmt.alloc(b.a, `${dir}/${baseName(step.argv[0])}`));
+            }
+            if (b.verbose) eprintln(`copied ${step.argv[0]} to ${dir}`);
+        }
     }
     b.steps.items[index].done = true;
 }

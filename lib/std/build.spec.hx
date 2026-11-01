@@ -568,6 +568,24 @@ function withAddInstall(b: *Build): void | Error {
 }
 
 /**
+ * A build with a `release` step that copies `notes/readme.txt` and the `notes` folder into `.helix-out/release`.
+ *
+ * @param b - The build
+ * @returns Nothing, or the error that a call on the build threw
+ *
+ * @remarks
+ * The file goes into `release/docs`, and what the folder holds into `release/notes`.
+ *
+ * @since 1.0.0
+ */
+
+function withInstallCopies(b: *Build): void | Error {
+    const release = try b.step("release", "Copy the notes");
+    try release.dependOn(try b.addInstallFile("notes/readme.txt", "release/docs"));
+    try release.dependOn(try b.addInstallFolder("notes", "release/notes"));
+}
+
+/**
  * A build whose own `run` step runs `tool` instead of `app`.
  *
  * @param b - The build
@@ -1045,6 +1063,54 @@ describe("Build") {
 
             expect(before).toBeFalse();
             expect(existsIn(a, dir, ".helix-out/release/x/tool")).toBeTrue();
+            cleanUp();
+        }
+    }
+
+    describe("addInstallFile") {
+        test("should copy the file into the folder under .helix-out, keeping its name") {
+            let arena = ArenaAllocator.init(cAllocator());
+            defer arena.deinit();
+            const a = arena.allocator();
+            const dir = try project(a, "install-file", "");
+            try makePath(try fmt.alloc(a, `${dir}/notes/more`));
+            try writeFile(try fmt.alloc(a, `${dir}/notes/readme.txt`), "read me\n");
+            try writeFile(try fmt.alloc(a, `${dir}/notes/more/later.txt`), "later\n");
+            void try runIn(a, dir, ["release"], withInstallCopies);
+
+            expect(readIn(a, dir, ".helix-out/release/docs/readme.txt")).toBe("read me\n");
+            cleanUp();
+        }
+    }
+
+    describe("addInstallFolder") {
+        test("should copy everything in the folder, the folders inside it too") {
+            let arena = ArenaAllocator.init(cAllocator());
+            defer arena.deinit();
+            const a = arena.allocator();
+            const dir = try project(a, "install-folder", "");
+            try makePath(try fmt.alloc(a, `${dir}/notes/more`));
+            try writeFile(try fmt.alloc(a, `${dir}/notes/readme.txt`), "read me\n");
+            try writeFile(try fmt.alloc(a, `${dir}/notes/more/later.txt`), "later\n");
+            void try runIn(a, dir, ["release"], withInstallCopies);
+
+            expect(readIn(a, dir, ".helix-out/release/notes/readme.txt")).toBe("read me\n");
+            expect(readIn(a, dir, ".helix-out/release/notes/more/later.txt")).toBe("later\n");
+            cleanUp();
+        }
+
+        test("should leave nothing that an earlier build put in the folder") {
+            let arena = ArenaAllocator.init(cAllocator());
+            defer arena.deinit();
+            const a = arena.allocator();
+            const dir = try project(a, "install-folder-stale", "");
+            try makePath(try fmt.alloc(a, `${dir}/notes`));
+            try writeFile(try fmt.alloc(a, `${dir}/notes/readme.txt`), "read me\n");
+            try makePath(try fmt.alloc(a, `${dir}/.helix-out/release/notes`));
+            try writeFile(try fmt.alloc(a, `${dir}/.helix-out/release/notes/old.txt`), "old\n");
+            void try runIn(a, dir, ["release"], withInstallCopies);
+
+            expect(existsIn(a, dir, ".helix-out/release/notes/old.txt")).toBeFalse();
             cleanUp();
         }
     }
