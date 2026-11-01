@@ -2466,6 +2466,7 @@ function addLlvmLibraryDir(args: *Strings, links: readonly *Strings): void {
  * and `--strip` keeps only the symbols that other code links to.
  * With debug info, LLVM's dsymutil then copies the DWARF out of the object file into `<output>.dSYM`,
  * before the object file is deleted.
+ * Without dsymutil, which a release ships for macOS only, the program goes without a `.dSYM`.
  *
  * @since 1.0.0
  */
@@ -2530,9 +2531,11 @@ function linkMacos(options: readonly *Options, target: Target, object: string, o
     if (options.mode == ModeDebug && !options.strip) add(&args, "-export_dynamic");
     if (options.strip) add(&args, "-x");
     if (!runLinker(&args)) return false;
-    if (debugInfo) {
-        const dsym: string[2] = [findTool("dsymutil") ?? "dsymutil", output];
-        if (os.run(&dsym) != 0) eprintln("warning: dsymutil failed; stack traces won't have line numbers");
+    if (debugInfo) {   // a release has dsymutil on macOS only, and elsewhere the program goes without a .dSYM
+        if (const tool = findTool("dsymutil")) {
+            const dsym: string[2] = [tool, output];
+            if (os.run(&dsym) != 0) eprintln("warning: dsymutil failed; stack traces won't have line numbers");
+        }
     }
     return true;
 }
