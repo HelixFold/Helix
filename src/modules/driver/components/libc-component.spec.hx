@@ -4,12 +4,12 @@
 
 import * as fmt from "std/fmt";
 import { cAllocator } from "std";
-import { endsWith, indexOf } from "std/text";
+import { endsWith, indexOf, startsWith } from "std/text";
 import { clangResourceDir } from "@modules/driver/components/libc.component";
 import { Strings } from "@modules/driver/components/structs/os-component.struct";
 import { macosSdk, macosVersion } from "@modules/driver/components/libc.component";
-import { lldLibDir, bareMetalFlags } from "@modules/driver/components/libc.component";
 import { strings, exists, getenv, allocCString } from "@modules/driver/components/os.component";
+import { lldLibDir, hostPlatform, bareMetalFlags } from "@modules/driver/components/libc.component";
 import { appleLinker, bareMetal, libcEnsure, llvmTool, findTool } from "@modules/driver/components/libc.component";
 
 /**
@@ -71,6 +71,15 @@ describe("findTool") {
 
     test("should give null for a tool that is nowhere") {
         expect(findTool("helix-no-such-tool")).toBeNull();
+    }
+}
+
+describe("hostPlatform") {
+    test("should name the platform as a toolchain folder is named") {
+        const platform = hostPlatform();
+
+        expect(endsWith(platform, "-macos") || endsWith(platform, "-linux") || endsWith(platform, "-windows")).toBeTrue();
+        expect(startsWith(platform, "x86_64-") || startsWith(platform, "aarch64-")).toBeTrue();
     }
 }
 
