@@ -161,13 +161,13 @@ export function build(b: *Build): void | Error {
         fail(run, "chip (with build.hx)", "helix build failed", project.stderr);
         return;
     }
-    const tool: string[1] = [try text(run, `${dir}/helix-out/bin/tool`)];
+    const tool: string[1] = [try text(run, `${dir}/.helix-out/bin/tool`)];
     const ran = try command(run, &tool, "", 0);
     if (!equal(trim(ran.stdout), "from the host")) {
         fail(run, "chip (with build.hx)", "the native tool got the chip", ran.stderr);
         return;
     }
-    if (((try elfMachine(run, try text(run, `${dir}/helix-out/bin/firmware`), 32)) ?? 0) != ElfArm) {
+    if (((try elfMachine(run, try text(run, `${dir}/.helix-out/bin/firmware`), 32)) ?? 0) != ElfArm) {
         fail(run, "chip (with build.hx)", "the firmware isn't a 32-bit ARM executable", "");
         return;
     }

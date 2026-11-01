@@ -33,12 +33,12 @@ import { absolute, makeTemp, deleteFolder } from "./services/run.service";
  * - **translate** - `translate-c` and `translate-svd` must give the expected files
  *
  * A group that needs a tool this machine lacks, such as QEMU or Node, is skipped, and the end of the report says which.
- * The compiler defaults to `helix-out/bin/helix`, which `helix build` installs.
+ * The compiler defaults to `.helix-out/bin/helix`, which `helix build` installs.
  *
  * @example
  * ```bash
- * helix run e2e/main.hx -- helix-out/bin/helix          # E2E:  512 passed, 512 total
- * helix run e2e/main.hx -- helix-out/bin/helix panic-   # only the snippets whose path holds panic-
+ * helix run e2e/main.hx -- .helix-out/bin/helix          # E2E:  512 passed, 512 total
+ * helix run e2e/main.hx -- .helix-out/bin/helix panic-   # only the snippets whose path holds panic-
  * ```
  *
  * @since 1.0.0
@@ -56,7 +56,7 @@ export function main(init: Init): u8 | Error {
         failed: 0,
         skipped: ArrayList<string>.init(arena.allocator()),
     };
-    run.compiler = try absolute(&run, init.args.len > 0 ? init.args[0] : "helix-out/bin/helix");
+    run.compiler = try absolute(&run, init.args.len > 0 ? init.args[0] : ".helix-out/bin/helix");
     run.temp = try makeTemp(&run);
     defer deleteFolder(run.temp) catch {};
 
