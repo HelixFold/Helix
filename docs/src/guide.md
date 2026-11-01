@@ -28,7 +28,8 @@ The new compiler reads the standard library from the `lib` folder of the reposit
 
 ::: info 🧰 What the toolchain brings
 `helix` never runs the system `cc`, `ld`, or `xcrun`.
-It compiles C with the clang of its own LLVM and links with lld, so the same compiler builds for every target.
+It compiles C with the clang of its own LLVM and links with the lld built into it,
+so the same compiler builds for every target.
 See [Targets](/projects/targets).
 :::
 

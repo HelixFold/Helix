@@ -58,7 +58,7 @@ These work on `run`, `build <file>`, `check`, `ir`, and `test`:
 | Variable     | Does                                                                                                            |
 |--------------|-----------------------------------------------------------------------------------------------------------------|
 | `HELIX_HOME` | where the toolchain's LLVM, the C libraries that Helix builds, and the caches live, by default `~/.cache/helix` |
-| `SDKROOT`    | the macOS SDK, for building for macOS from another machine                                                      |
+| `SDKROOT`    | the macOS SDK, which comes before Xcode's, the command-line tools', and the copy that a release ships           |
 
 ## Packages
 
