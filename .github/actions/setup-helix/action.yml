@@ -11,15 +11,19 @@ runs:
   steps:
     # Intermediate stage: Helix has no published release yet, so the compiler comes from the archive committed in
     # .github/bootstrap: the compiler built from this repository for x86_64-linux, with only what building and testing
-    # it needs - the standard library, the runtime, the prebuilt musl, clang and lld, clang's headers, and the static
-    # LLVM and libclang that the compiler links. Its lib folder is laid out as a HELIX_HOME, so the compiler that the
+    # it needs - the standard library, the runtime, the prebuilt musl, clang, clang's headers, and the static LLVM,
+    # libclang, and lld that the compiler links. Its lib folder is laid out as a HELIX_HOME, so the compiler that the
     # build makes finds the same LLVM and C library. Once a release is out, download it instead, e.g.:
     #   gh release download --repo HelixFold/Helix --pattern 'helix-*-x86_64-linux.tar.xz' --dir "$RUNNER_TEMP"
     # and delete .github/bootstrap.
     - name: Install Helix
       shell: bash
+      # Two archives, since GitHub takes no file over 100 MB: the compiler with its lib folder, and the static LLVM
+      # in lib/llvm/x86_64-linux.
       run: |
-        tar -xJf .github/bootstrap/helix-1.0.0-alpha.0-x86_64-linux.tar.xz -C "$RUNNER_TEMP" --warning=no-unknown-keyword
+        for archive in .github/bootstrap/helix-1.0.0-alpha.0-x86_64-linux{,-llvm}.tar.xz; do
+            tar -xJf "$archive" -C "$RUNNER_TEMP" --warning=no-unknown-keyword
+        done
         echo "$RUNNER_TEMP/helix-1.0.0-alpha.0-x86_64-linux" >> "$GITHUB_PATH"
         echo "HELIX_HOME=$RUNNER_TEMP/helix-1.0.0-alpha.0-x86_64-linux/lib" >> "$GITHUB_ENV"
 
