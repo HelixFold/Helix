@@ -94,7 +94,7 @@ function cleanUp(): void {
  * @throws Any error that {@link runBuild} throws
  *
  * @remarks
- * The runner writes `.helix-cache` and `helix-out` relative to the current folder,
+ * The runner writes `.helix-cache` and `.helix-out` relative to the current folder,
  * so it changes into `dir` for the run and back to the folder it started in afterwards, even when the run fails.
  *
  * @since 1.0.0
@@ -539,7 +539,7 @@ function withBinAsExecutable(b: *Build): void | Error {
  * @returns Nothing, or the error that a call on the build threw
  *
  * @remarks
- * The install step copies it into `helix-out/bin`.
+ * The install step copies it into `.helix-out/bin`.
  *
  * @since 1.0.0
  */
@@ -549,7 +549,7 @@ function withInstall(b: *Build): void | Error {
 }
 
 /**
- * A build with a `release` step that installs `tool` into `helix-out/release/x`.
+ * A build with a `release` step that installs `tool` into `.helix-out/release/x`.
  *
  * @param b - The build
  * @returns Nothing, or the error that a call on the build threw
@@ -995,7 +995,7 @@ describe("Build") {
     }
 
     describe("install") {
-        test("should build the artifact and copy it into helix-out/bin") {
+        test("should build the artifact and copy it into .helix-out/bin") {
             let arena = ArenaAllocator.init(cAllocator());
             defer arena.deinit();
             const a = arena.allocator();
@@ -1005,7 +1005,7 @@ describe("Build") {
             expect(status).toBe(0);
             expect(readIn(a, dir, "log.txt"))
                 .toBe("build tools/tool.hx -o .helix-cache/bin/host/release-fast/tool --mode release-fast --strip\n");
-            expect(existsIn(a, dir, "helix-out/bin/tool")).toBeTrue();
+            expect(existsIn(a, dir, ".helix-out/bin/tool")).toBeTrue();
             cleanUp();
         }
 
@@ -1016,23 +1016,23 @@ describe("Build") {
             const dir = try project(a, "install-windows", "");
             void try runIn(a, dir, ["--target", "x86_64-windows"], withInstall);
 
-            expect(existsIn(a, dir, "helix-out/bin/tool.exe")).toBeTrue();
+            expect(existsIn(a, dir, ".helix-out/bin/tool.exe")).toBeTrue();
             cleanUp();
         }
     }
 
     describe("addInstall") {
-        test("should copy the artifact into the folder under helix-out when its step runs") {
+        test("should copy the artifact into the folder under .helix-out when its step runs") {
             let arena = ArenaAllocator.init(cAllocator());
             defer arena.deinit();
             const a = arena.allocator();
             const dir = try project(a, "add-install", "");
             void try runIn(a, dir, [], withAddInstall);
-            const before = existsIn(a, dir, "helix-out/release/x/tool");
+            const before = existsIn(a, dir, ".helix-out/release/x/tool");
             void try runIn(a, dir, ["release"], withAddInstall);
 
             expect(before).toBeFalse();
-            expect(existsIn(a, dir, "helix-out/release/x/tool")).toBeTrue();
+            expect(existsIn(a, dir, ".helix-out/release/x/tool")).toBeTrue();
             cleanUp();
         }
     }
@@ -1125,7 +1125,7 @@ describe("runBuild") {
         const status = try runIn(a, dir, [], emptyBuild);
 
         expect(status).toBe(0);
-        expect(existsIn(a, dir, "helix-out/bin/app")).toBeTrue();
+        expect(existsIn(a, dir, ".helix-out/bin/app")).toBeTrue();
         cleanUp();
     }
 
