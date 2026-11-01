@@ -19,7 +19,7 @@ export const Usage: readonly string[] = [
     "Usage: helix <command> [options]",
     "",
     "Commands:",
-    "  build [steps] [-Dk=v]     Build the project: helix.jsonc's bin, then build.hx (--target, --mode; --help)",
+    "  build [steps] [--k=v]     Build the project: helix.jsonc's bin, then build.hx (--target, --mode; --help)",
     "  run <file.hx> [-- args]   Build and run a program",
     "  build <file.hx>           Build an executable from one file",
     "  cc [--target t] args      The system C compiler, aimed at a Helix target",
