@@ -124,7 +124,7 @@ export extern "C" function IRQ37_Handler(): void {
  * ```bash
  * helix translate-svd stm32f405.svd -o src/stm32f405.hx    # after editing the SVD
  * helix build                                              # thumbv7em-freestanding-eabihf, cortex-m4
- * qemu-system-arm -M netduinoplus2 -nographic -kernel helix-out/bin/firmware
+ * qemu-system-arm -M netduinoplus2 -nographic -kernel .helix-out/bin/firmware
  * ```
  *
  * @since 1.0.0
