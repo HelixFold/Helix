@@ -13,7 +13,7 @@ tar -xJf .github/bootstrap/helix-1.0.0-alpha.0-x86_64-linux.tar.xz -C "$HOME/.lo
 export PATH="$HOME/.local/helix-1.0.0-alpha.0-x86_64-linux:$PATH"
 export HELIX_HOME="$HOME/.local/helix-1.0.0-alpha.0-x86_64-linux/lib"
 
-helix build          # the compiler, in helix-out/bin/helix # [!code highlight]
+helix build          # the compiler, in .helix-out/bin/helix # [!code highlight]
 helix build test     # its specs, run by the compiler the build just made
 helix build e2e      # the end-to-end checks in e2e/
 ```
@@ -24,7 +24,7 @@ The bootstrap toolchain is built for x86_64 Linux, and there is no prebuilt tool
 
 The toolchain's `lib` folder holds the static LLVM, clang, lld, and the C library sources that the compiler needs,
 laid out as a `HELIX_HOME`.
-The new compiler reads the standard library from the `lib` folder of the repository, two folders above `helix-out/bin`.
+The new compiler reads the standard library from the `lib` folder of the repository, two folders above `.helix-out/bin`.
 
 ::: info 🧰 What the toolchain brings
 `helix` never runs the system `cc`, `ld`, or `xcrun`.
@@ -88,7 +88,7 @@ A folder with a `helix.jsonc` is a project:
 ```
 
 ```bash
-helix build                # builds each program of "bin" into helix-out/bin
+helix build                # builds each program of "bin" into .helix-out/bin
 helix build run -- ada     # builds and runs it, passing on the arguments after --
 helix build test           # runs the specs in src/
 ```

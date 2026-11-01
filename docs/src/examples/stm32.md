@@ -6,7 +6,7 @@ It prints over USART1, uses the FPU, and handles SysTick and USART1 interrupts i
 ```bash
 cd examples/stm32
 helix build
-qemu-system-arm -M netduinoplus2 -nographic -kernel helix-out/bin/firmware
+qemu-system-arm -M netduinoplus2 -nographic -kernel .helix-out/bin/firmware
 ```
 
 ```text
