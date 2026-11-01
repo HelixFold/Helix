@@ -134,7 +134,7 @@ function runCommand(run: *Run, project: string, dir: string, line: string, wante
 }
 
 /**
- * Checks that `helix.jsonc` owns the programs of a project and that the old `-D` flags point at the new ones.
+ * Checks that `helix.jsonc` owns the programs of a project and that an option that build.hx never declares is an error.
  *
  * @param run - The run
  * @returns Nothing, or the error that stopped the checks
@@ -142,7 +142,7 @@ function runCommand(run: *Run, project: string, dir: string, line: string, wante
  * @remarks
  * A build script of the `bins` project that declares a program of `bin` again, or asks for one that is not there,
  * must fail with an error that says so.
- * `-Dtarget` must point at `--target` as well.
+ * `--nope`, which the build script of `bins` never declares, must fail with an error that names it.
  *
  * @since 1.0.0
  */
@@ -171,13 +171,13 @@ function checkBuildRules(run: *Run): void | Error {
     }
 
     try copyFile("e2e/projects/bins/build.hx", script);
-    const old: string[2] = ["build", "-Dtarget=x86_64-windows"];
-    const output = try helix(run, &old, dir);
+    const undeclared: string[2] = ["build", "--nope=1"];
+    const output = try helix(run, &undeclared, dir);
     const stderr: string = output.stderr;
-    if (output.status != 0 && contains(stderr, "-Dtarget is now --target")) {
-        pass(run, "helix build -Dtarget", "");
+    if (output.status != 0 && contains(stderr, "build.hx has no option --nope")) {
+        pass(run, "helix build --nope", "");
     } else {
-        fail(run, "helix build -Dtarget", "should point at --target", stderr);
+        fail(run, "helix build --nope", "should say that build.hx has no option --nope", stderr);
     }
 }
 

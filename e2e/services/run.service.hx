@@ -398,7 +398,7 @@ export function directives(run: *Run, source: string, key: string): string[] | E
  * Splits a command line into its words at spaces.
  *
  * @param run - The run, whose arena holds the list
- * @param line - The command line, such as `build run -Dgreeting=hi`
+ * @param line - The command line, such as `build run --greeting=hi`
  * @returns The words, without empty ones
  *
  * @remarks
@@ -406,7 +406,7 @@ export function directives(run: *Run, source: string, key: string): string[] | E
  *
  * @example
  * ```hx
- * try words(&run, "build run -Dloud"); // ["build", "run", "-Dloud"]
+ * try words(&run, "build run --loud"); // ["build", "run", "--loud"]
  * ```
  *
  * @since 1.0.0
