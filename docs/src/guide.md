@@ -128,3 +128,4 @@ See [Testing](/projects/testing).
 - [Basics](/language/basics)
 - [Errors](/language/errors)
 - [Command Line](/reference/cli)
+- [Examples](/examples/hello), whole programs from a hello world to firmware
