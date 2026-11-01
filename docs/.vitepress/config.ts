@@ -69,6 +69,17 @@ export default defineVersionedConfig({
                     { text: 'Standard Library', link: '/reference/std' }
                 ]
             },
+            {
+                text: 'Examples',
+                items: [
+                    { text: 'Hello', link: '/examples/hello' },
+                    { text: 'Word Count', link: '/examples/wc' },
+                    { text: 'Shop', link: '/examples/shop' },
+                    { text: 'Tour', link: '/examples/tour' },
+                    { text: 'Kernel', link: '/examples/kernel' },
+                    { text: 'STM32 Firmware', link: '/examples/stm32' }
+                ]
+            },
             { component: 'VersionSwitcher' }
         ],
 
@@ -111,6 +122,18 @@ export default defineVersionedConfig({
                     items: [
                         { text: 'Command Line', link: '/reference/cli' },
                         { text: 'Standard Library', link: '/reference/std' }
+                    ]
+                },
+                {
+                    text: 'Examples',
+                    collapsed: true,
+                    items: [
+                        { text: 'Hello', link: '/examples/hello' },
+                        { text: 'Word Count', link: '/examples/wc' },
+                        { text: 'Shop', link: '/examples/shop' },
+                        { text: 'Tour', link: '/examples/tour' },
+                        { text: 'Kernel', link: '/examples/kernel' },
+                        { text: 'STM32 Firmware', link: '/examples/stm32' }
                     ]
                 }
             ]
