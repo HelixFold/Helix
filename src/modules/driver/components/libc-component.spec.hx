@@ -7,8 +7,9 @@ import { cAllocator } from "std";
 import { endsWith, indexOf } from "std/text";
 import { clangResourceDir } from "@modules/driver/components/libc.component";
 import { Strings } from "@modules/driver/components/structs/os-component.struct";
-import { strings, add, exists, getenv } from "@modules/driver/components/os.component";
-import { addLinker, bareMetalFlags, macosSdk, macosVersion } from "@modules/driver/components/libc.component";
+import { macosSdk, macosVersion } from "@modules/driver/components/libc.component";
+import { lldLibDir, bareMetalFlags } from "@modules/driver/components/libc.component";
+import { strings, exists, getenv, allocCString } from "@modules/driver/components/os.component";
 import { appleLinker, bareMetal, libcEnsure, llvmTool, findTool } from "@modules/driver/components/libc.component";
 
 /**
@@ -73,24 +74,14 @@ describe("findTool") {
     }
 }
 
-describe("addLinker") {
-    test("should add the linker itself when it is found") {
-        let args = strings();
+describe("lldLibDir") {
+    test("should give a folder that holds lld's libraries, when it finds one") {
+        if (const dir = lldLibDir()) {
+            const archive = exists(allocCString(`${dir}/liblldCommon.a`));
+            const shared = exists(allocCString(`${dir}/liblldCommon.dylib`));
 
-        expect(addLinker(&args, "ld64.lld")).toBeTrue();
-        expect(args.items.len).toBe(1);
-        expect(endsWith(args.items[0], "ld64.lld")).toBeTrue();
-    }
-
-    test("should fall back to lld with the gnu flavor for a name it cannot find") {
-        let args = strings();
-        add(&args, "first");
-
-        expect(addLinker(&args, "helix-no-such-linker")).toBeTrue();
-        expect(args.items.len).toBe(4);
-        expect(endsWith(args.items[1], "lld")).toBeTrue();
-        expect(args.items[2]).toBe("-flavor");
-        expect(args.items[3]).toBe("gnu");
+            expect(archive || shared).toBeTrue();
+        }
     }
 }
 

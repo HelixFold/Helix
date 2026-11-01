@@ -31,10 +31,11 @@ import { files, addText, hxSourceAddFile, hxSourceFree } from "@models/source.mo
 import { Manifest } from "@modules/driver/components/structs/manifest-component.struct";
 import { HxCodegenOptions } from "@modules/codegen/components/structs/base-component.struct";
 import { hxSha256Init, hxSha256Update, hxSha256Finish, hxSha256Hex } from "@services/sha256.service";
+import { macosSdk, macosVersion, linkedLlvmLibDir } from "@modules/driver/components/libc.component";
+import { llvmTool, findTool, lldLibDir, libcEnsure } from "@modules/driver/components/libc.component";
+import { clangResourceDir, bareMetalFlags, appleLinker } from "@modules/driver/components/libc.component";
 import { allocCString, toCString, fromCString, add, strings } from "@modules/driver/components/os.component";
 import { Target, PackageArg, KnownPackage } from "@modules/driver/components/structs/compile-component.struct";
-import { libcEnsure, llvmTool, linkedLlvmLibDir, findTool, addLinker, appleLinker } from "@modules/driver/components/libc.component";
-import { macosSdk, macosVersion, clangResourceDir, bareMetalFlags } from "@modules/driver/components/libc.component";
 import { Compilation, ImportTarget, Chip, Options } from "@modules/driver/components/structs/compile-component.struct";
 import { text as jsonText, loadManifest, contains, parse, member } from "@modules/driver/components/manifest.component";
 
@@ -45,6 +46,17 @@ import { text as jsonText, loadManifest, contains, parse, member } from "@module
  */
 
 extern "C" function free(ptr: ?u8[*]): void;
+
+/**
+ * The function of lld.c that links with the lld inside the compiler.
+ *
+ * @remarks
+ * `argv[0]` picks the linker, as the name of an lld program does, and the result is lld's exit code.
+ *
+ * @since 1.0.0
+ */
+
+extern "C" function hx_lld_link(argv: (?u8[*])[*], count: usize): i32;
 
 /**
  * Creates the options of a command line that sets nothing.
@@ -1696,19 +1708,19 @@ export function toolchainLlvmDir(target: Target): ?string {
 }
 
 /**
- * Checks whether a link asks for LLVM or libclang.
+ * Checks whether a link asks for LLVM, libclang, or lld.
  *
  * @param link - One `--link` file or `-l` library of the program
- * @returns `true` for `-lLLVM...` and `-lclang`
+ * @returns `true` for `-lLLVM...`, `-lclang`, and `-llld...`
  *
  * @remarks
- * The compiler declares both in its helix.jsonc, and they come from the toolchain rather than from the system.
+ * The compiler declares them in its helix.jsonc, and they come from the toolchain rather than from the system.
  *
  * @since 1.0.0
  */
 
 function isLlvmLink(link: string): bool {
-    return startsWith(link, "-lLLVM") || equal(link, "-lclang");
+    return startsWith(link, "-lLLVM") || equal(link, "-lclang") || startsWith(link, "-llld");
 }
 
 /**
@@ -1776,17 +1788,23 @@ function targetLibrariesExist(options: readonly *Options, target: Target, libc: 
 /**
  * Runs a linker command.
  *
- * @param args - The command
+ * @param args - The command, whose first item names the linker
  * @returns `false` after reporting that linking failed
  *
  * @remarks
+ * `ld.lld`, `ld64.lld`, and `wasm-ld` are lld, which is linked into the compiler and runs in this process,
+ * so no linker needs to be installed.
+ * Any other linker, such as Apple's `ld` for arm64e, runs as a program.
  * The linker prints its own errors, so the message here only says that the step failed.
  *
  * @since 1.0.0
  */
 
 function runLinker(args: readonly *Strings): bool {
-    if (os.run(args.items) != 0) {
+    const linker = args.items[0];
+    const lld = equal(linker, "ld.lld") || equal(linker, "ld64.lld") || equal(linker, "wasm-ld");
+    const code = lld ? hx_lld_link(os.cArgs(args.items), args.items.len) : os.run(args.items);
+    if (code != 0) {
         eprintln("error: linking failed");
         return false;
     }
@@ -1822,7 +1840,7 @@ function linkWindows(options: readonly *Options, target: Target, object: string,
     }
     if (!targetLibrariesExist(options, target, libc)) return false;
     let args = strings();
-    if (!addLinker(&args, "ld.lld")) add(&args, "ld.lld");
+    add(&args, "ld.lld");
     add(&args, "-m");
     add(&args, startsWith(target.triple, "aarch64") ? "arm64pe" : "i386pep");
     add(&args, "--subsystem");
@@ -1873,7 +1891,7 @@ function linkMusl(options: readonly *Options, target: Target, object: string, ou
     }
     if (!targetLibrariesExist(options, target, libc)) return false;
     let args = strings();
-    if (!addLinker(&args, "ld.lld")) add(&args, "ld.lld");
+    add(&args, "ld.lld");
     add(&args, "-static");
     add(&args, "--gc-sections");
     add(&args, "-o");
@@ -1948,7 +1966,7 @@ function linkFreestanding(options: readonly *Options, target: Target, object: st
     const runtime = runtimeObject(target, "runtime");
     if (start == null || runtime == null) return false;
     let args = strings();
-    if (!addLinker(&args, "ld.lld")) add(&args, "ld.lld");
+    add(&args, "ld.lld");
     add(&args, "-static");
     add(&args, "-nostdlib");
     add(&args, "--gc-sections");
@@ -2298,7 +2316,7 @@ function linkWasi(options: readonly *Options, target: Target, object: string, ou
     if (options.test && runtimeObject(target, "test") == null) return false;   // reports that there's no runner yet
     if (!targetLibrariesExist(options, target, libc)) return false;
     let args = strings();
-    if (!addLinker(&args, "wasm-ld")) add(&args, "wasm-ld");
+    add(&args, "wasm-ld");
     add(&args, "--gc-sections");
     add(&args, "-z");
     add(&args, "stack-size=1048576");   // 1 MiB, like a thread's stack elsewhere; wasm-ld's default is 64 KiB
@@ -2316,30 +2334,44 @@ function linkWasi(options: readonly *Options, target: Target, object: string, ou
 }
 
 /**
- * Lets the linker find the LLVM that this compiler uses, for a program that links LLVM or libclang.
+ * Lets the linker find the LLVM that this compiler uses, for a program that links LLVM, libclang, or lld.
  *
  * @param args - The linker command line to extend
  * @param links - The `--link` files and `-l` libraries of the program
  *
  * @remarks
- * A program that declares `LLVM` or `clang` among its system libraries, as the compiler's own specs do,
+ * A program that declares `LLVM`, `clang`, or lld's libraries among its system libraries, as the compiler does,
  * links with the LLVM this compiler runs on rather than one that the linker happens to find.
  * The folder goes in as a search path and as a run path, so the program also loads that LLVM when it runs.
- * Nothing is added for a program that links neither library, or when the folder cannot be found.
+ * lld's folder follows it when lld is installed apart from LLVM, as Homebrew does.
+ * Nothing is added for a program that links none of them, or when a folder cannot be found.
  *
+ * @see lldLibDir
  * @see linkedLlvmLibDir
+ *
  * @since 1.0.0
  */
 
 function addLlvmLibraryDir(args: *Strings, links: readonly *Strings): void {
+    let wanted = false;
+    let lldWanted = false;
     for (const link of links.items) {
-        if (!startsWith(link, "-lLLVM") && !equal(link, "-lclang")) continue;
-        if (const dir = linkedLlvmLibDir()) {
-            add(args, allocCString(`-L${dir}`));
-            add(args, "-rpath");
-            add(args, dir);
-        }
-        return;
+        wanted = wanted || isLlvmLink(link);
+        lldWanted = lldWanted || startsWith(link, "-llld");
+    }
+    if (!wanted) return;
+    const llvmDir = linkedLlvmLibDir();
+    if (const dir = llvmDir) {
+        add(args, allocCString(`-L${dir}`));
+        add(args, "-rpath");
+        add(args, dir);
+    }
+    if (!lldWanted) return;
+    if (const dir = lldLibDir()) {
+        if (equal(dir, llvmDir ?? "")) return;   // one LLVM with lld inside
+        add(args, allocCString(`-L${dir}`));
+        add(args, "-rpath");
+        add(args, dir);
     }
 }
 
@@ -2389,9 +2421,8 @@ function linkMacos(options: readonly *Options, target: Target, object: string, o
             eprintln("error: linking for arm64e needs Apple's ld\n  = hint: install the command-line tools (`xcode-select --install`)");
             return false;
         }
-    } else if (!addLinker(&args, "ld64.lld")) {
-        eprintln("error: linking for macOS needs ld64.lld\n  = hint: `brew install lld`");
-        return false;
+    } else {
+        add(&args, "ld64.lld");
     }
     // the oldest macOS it runs on: this machine's for its own programs, else what the target says
     let minimum = "11.0";
