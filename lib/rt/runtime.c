@@ -30,8 +30,11 @@
 #include <unistd.h>
 #include <dirent.h>
 #ifndef __wasi__   // WASI has no processes
+#include <poll.h>
+#include <signal.h>
 #include <spawn.h>
 #include <sys/wait.h>
+#include <time.h>
 #endif
 
 #ifdef __APPLE__
@@ -341,6 +344,16 @@ int64_t hx_process_capture(const HxString *argv, size_t count, char **out, size_
     return hx_process_run(argv, count);
 }
 
+int64_t hx_process_capture_all(const HxString *argv, size_t count, const char *dir, size_t dir_len, int64_t timeout_ms,
+                               char **out, size_t *out_len, char **err, size_t *err_len) {
+    (void)dir;
+    (void)dir_len;
+    (void)timeout_ms;
+    *err = NULL;
+    *err_len = 0;
+    return hx_process_capture(argv, count, out, out_len);
+}
+
 /** WebAssembly code can't read its own call stack; the host (wasmtime, Node) prints it when the program traps. */
 void hx_stack_trace(void) {}
 #else
@@ -414,6 +427,116 @@ int64_t hx_process_capture(const HxString *argv, size_t count, char **out, size_
         result = WIFEXITED(status) ? WEXITSTATUS(status) : WIFSIGNALED(status) ? 128 + WTERMSIG(status) : -1;
     }
     close(fds[0]);
+    for (size_t i = 0; i < count; i++) free(args[i]);
+    free(args);
+    return result;
+}
+
+/** Milliseconds on a clock that only goes forward. */
+static int64_t monotonic_ms(void) {
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return (int64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000;
+}
+
+/**
+ * Like `hx_process_capture`, with the program's stderr captured too: `*err` gets malloc'ed bytes (`*err_len` of
+ * them), which the caller frees. Both pipes are read as they fill, so a program that writes a lot to one of them
+ * while the other is quiet doesn't block. The program starts in `dir` when `dir_len` isn't 0, and is killed once
+ * `timeout_ms` (when above 0) has passed, which makes its status 128 + 9.
+ */
+int64_t hx_process_capture_all(const HxString *argv, size_t count, const char *dir, size_t dir_len, int64_t timeout_ms,
+                               char **out, size_t *out_len, char **err, size_t *err_len) {
+    *out = NULL;
+    *out_len = 0;
+    *err = NULL;
+    *err_len = 0;
+    if (count == 0) return -1;
+    int out_fds[2], err_fds[2];
+    if (pipe(out_fds) != 0) return -1;
+    if (pipe(err_fds) != 0) {
+        close(out_fds[0]);
+        close(out_fds[1]);
+        return -1;
+    }
+    char **args = calloc(count + 1, sizeof(char *));
+    if (!args) return -1;
+    for (size_t i = 0; i < count; i++) args[i] = strndup(argv[i].ptr, argv[i].len);
+    fflush(NULL);
+    posix_spawn_file_actions_t actions;
+    posix_spawn_file_actions_init(&actions);
+    posix_spawn_file_actions_adddup2(&actions, out_fds[1], 1);
+    posix_spawn_file_actions_adddup2(&actions, err_fds[1], 2);
+    posix_spawn_file_actions_addclose(&actions, out_fds[0]);
+    posix_spawn_file_actions_addclose(&actions, out_fds[1]);
+    posix_spawn_file_actions_addclose(&actions, err_fds[0]);
+    posix_spawn_file_actions_addclose(&actions, err_fds[1]);
+    char *folder = dir_len > 0 ? strndup(dir, dir_len) : NULL;
+#pragma clang diagnostic push   // macOS 26 adds posix_spawn_file_actions_addchdir, but programs run on older macOS too
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    if (folder) posix_spawn_file_actions_addchdir_np(&actions, folder);
+#pragma clang diagnostic pop
+    pid_t pid;
+    int failed = posix_spawnp(&pid, args[0], &actions, NULL, args, environ);
+    free(folder);
+    posix_spawn_file_actions_destroy(&actions);
+    close(out_fds[1]);
+    close(err_fds[1]);
+    int64_t result = -1;
+    if (failed != 0) {
+        fprintf(stderr, "error: cannot run '%s': %s\n", args[0], strerror(failed));
+    } else {
+        struct pollfd ends[2] = { { out_fds[0], POLLIN, 0 }, { err_fds[0], POLLIN, 0 } };
+        char *bufs[2] = { malloc(4096), malloc(4096) };
+        size_t caps[2] = { 4096, 4096 }, lens[2] = { 0, 0 };
+        int open = 2;
+        int64_t deadline = timeout_ms > 0 ? monotonic_ms() + timeout_ms : 0;
+        int stop_after_drain = 0;
+        while (open > 0) {
+            int wait_ms = -1;
+            if (deadline > 0) {
+                int64_t left = deadline - monotonic_ms();
+                if (left <= 0) {
+                    // its own children may keep the pipes open, so take what is there now and stop reading
+                    kill(pid, SIGKILL);
+                    deadline = 0;
+                    stop_after_drain = 1;
+                    continue;
+                }
+                wait_ms = (int)left;
+            }
+            int ready = poll(ends, 2, stop_after_drain ? 0 : wait_ms);
+            if (ready == 0) {
+                if (stop_after_drain) break;
+                continue;
+            }
+            if (ready < 0) {
+                if (errno == EINTR) continue;
+                break;
+            }
+            for (int i = 0; i < 2; i++) {
+                if (ends[i].fd < 0 || !(ends[i].revents & (POLLIN | POLLHUP | POLLERR))) continue;
+                if (lens[i] == caps[i]) bufs[i] = realloc(bufs[i], caps[i] *= 2);
+                ssize_t n = read(ends[i].fd, bufs[i] + lens[i], caps[i] - lens[i]);
+                if (n < 0 && errno == EINTR) continue;
+                if (n <= 0) {
+                    ends[i].fd = -1;   // poll skips it from now on
+                    open--;
+                } else {
+                    lens[i] += (size_t)n;
+                }
+            }
+        }
+        *out = bufs[0];
+        *out_len = lens[0];
+        *err = bufs[1];
+        *err_len = lens[1];
+        int status;
+        while (waitpid(pid, &status, 0) < 0 && errno == EINTR) {}
+        result = WIFEXITED(status) ? WEXITSTATUS(status) : WIFSIGNALED(status) ? 128 + WTERMSIG(status) : -1;
+    }
+    close(out_fds[0]);
+    close(err_fds[0]);
     for (size_t i = 0; i < count; i++) free(args[i]);
     free(args);
     return result;

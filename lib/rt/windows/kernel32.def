@@ -42,6 +42,7 @@ HeapReAlloc
 LoadLibraryA
 MoveFileExA
 MultiByteToWideChar
+PeekNamedPipe
 QueryPerformanceCounter
 QueryPerformanceFrequency
 ReadFile

@@ -100,6 +100,12 @@ IMPORT int __stdcall CreateProcessA(const char *app, char *command_line, Securit
                                     const char *dir, StartupInfoA *startup, ProcessInformation *info);
 IMPORT DWORD __stdcall WaitForSingleObject(HANDLE handle, DWORD ms);
 IMPORT int __stdcall GetExitCodeProcess(HANDLE process, DWORD *code);
+IMPORT DWORD __stdcall GetTempPathA(DWORD size, char *buf);
+IMPORT int __stdcall PeekNamedPipe(HANDLE pipe, void *buf, DWORD size, DWORD *read, DWORD *available, DWORD *left);
+IMPORT uint64_t __stdcall GetTickCount64(void);
+IMPORT int __stdcall TerminateProcess(HANDLE process, unsigned code);
+IMPORT void __stdcall Sleep(DWORD ms);
+IMPORT unsigned __stdcall GetTempFileNameA(const char *dir, const char *prefix, unsigned unique, char *name);
 
 #define INVALID_HANDLE ((HANDLE)(intptr_t)-1)
 #define INVALID_ATTRIBUTES ((DWORD)-1)
@@ -568,11 +574,12 @@ int64_t hx_process_run(const HxString *argv, size_t count) {
 }
 
 /**
- * Like `hx_process_run`, with the program's stdout captured through a pipe: `*out` gets malloc'ed bytes
- * (`*out_len` of them), which the caller frees. stderr and stdin are inherited. CreateProcessA looks the program up
- * in PATH as `_spawnvp` does.
+ * Runs a program with its stdout captured through a pipe into `*out` (malloc'ed, `*out_len` bytes), and its stderr
+ * going to `error`. CreateProcessA looks the program up in PATH as `_spawnvp` does. It starts in `dir` unless that is
+ * NULL, and is ended once `timeout_ms` (when above 0) has passed, which makes its status 128 + 9 as on Unix.
  */
-int64_t hx_process_capture(const HxString *argv, size_t count, char **out, size_t *out_len) {
+static int64_t capture_with(const HxString *argv, size_t count, const char *dir, int64_t timeout_ms, char **out,
+                            size_t *out_len, HANDLE error) {
     *out = NULL;
     *out_len = 0;
     if (count == 0) return -1;
@@ -605,9 +612,9 @@ int64_t hx_process_capture(const HxString *argv, size_t count, char **out, size_
     startup.flags = 0x100;   // STARTF_USESTDHANDLES
     startup.input = GetStdHandle((DWORD)-10);
     startup.output = write_end;
-    startup.error = GetStdHandle(STD_ERROR_HANDLE);
+    startup.error = error;
     ProcessInformation process = { 0 };
-    int started = CreateProcessA(NULL, command, NULL, NULL, 1, 0, NULL, NULL, &startup, &process);
+    int started = CreateProcessA(NULL, command, NULL, NULL, 1, 0, NULL, dir, &startup, &process);
     CloseHandle(write_end);
     if (!started) {
         dprintf(2, "error: cannot run '%.*s': Windows error %lu\n", (int)argv[0].len, argv[0].ptr, (unsigned long)GetLastError());
@@ -619,8 +626,22 @@ int64_t hx_process_capture(const HxString *argv, size_t count, char **out, size_
     CloseHandle(process.thread);
     size_t cap = 4096, len = 0;
     char *buf = malloc(cap);
+    uint64_t deadline = timeout_ms > 0 ? GetTickCount64() + (uint64_t)timeout_ms : 0;
     for (;;) {
         if (len == cap) buf = realloc(buf, cap *= 2);
+        if (deadline > 0) {   // read only what's there, so the deadline can pass between reads
+            DWORD available = 0;
+            if (!PeekNamedPipe(read_end, NULL, 0, NULL, &available, NULL)) break;   // the program closed it
+            if (available == 0) {
+                if (GetTickCount64() >= deadline) {
+                    TerminateProcess(process.process, 128 + 9);
+                    deadline = 0;
+                } else {
+                    Sleep(10);
+                }
+                continue;
+            }
+        }
         DWORD got = 0;
         if (!ReadFile(read_end, buf + len, (DWORD)(cap - len), &got, NULL) || got == 0) break;
         len += got;
@@ -633,6 +654,58 @@ int64_t hx_process_capture(const HxString *argv, size_t count, char **out, size_
     *out = buf;
     *out_len = len;
     return (int64_t)(code & 0xff);
+}
+
+/**
+ * Like `hx_process_run`, with the program's stdout captured through a pipe: `*out` gets malloc'ed bytes
+ * (`*out_len` of them), which the caller frees. stderr and stdin are inherited.
+ */
+int64_t hx_process_capture(const HxString *argv, size_t count, char **out, size_t *out_len) {
+    return capture_with(argv, count, NULL, 0, out, out_len, GetStdHandle(STD_ERROR_HANDLE));
+}
+
+/**
+ * Like `hx_process_capture`, with the program's stderr captured too: `*err` gets malloc'ed bytes (`*err_len` of
+ * them). stderr goes to a temporary file that is read back once the program ends, so neither stream can block it.
+ * The program starts in `dir` when `dir_len` isn't 0, and is ended once `timeout_ms` (when above 0) has passed.
+ */
+int64_t hx_process_capture_all(const HxString *argv, size_t count, const char *dir, size_t dir_len, int64_t timeout_ms,
+                               char **out, size_t *out_len, char **err, size_t *err_len) {
+    *err = NULL;
+    *err_len = 0;
+    char temp[260], path[260];
+    if (GetTempPathA(sizeof temp, temp) == 0 || GetTempFileNameA(temp, "hx", 0, path) == 0) return -1;
+    SecurityAttributes inherit = { sizeof inherit, NULL, 1 };
+    HANDLE file = CreateFileA(path, 0x40000000 /* GENERIC_WRITE */, 0x7 /* share all */, &inherit,
+                              2 /* CREATE_ALWAYS */, 0, NULL);
+    if (file == INVALID_HANDLE) {
+        _unlink(path);
+        return -1;
+    }
+    char *folder = NULL;
+    if (dir_len > 0 && (folder = malloc(dir_len + 1))) {
+        memcpy(folder, dir, dir_len);
+        folder[dir_len] = '\0';
+    }
+    int64_t result = capture_with(argv, count, folder, timeout_ms, out, out_len, file);
+    free(folder);
+    CloseHandle(file);
+    int fd = _open(path, 0x8000 /* _O_BINARY, read-only */);
+    if (fd >= 0) {
+        int64_t size = _filelengthi64(fd);
+        char *buf = malloc(size > 0 ? (size_t)size : 1);
+        int64_t got = 0;
+        while (buf && got < size) {
+            int n = _read(fd, buf + got, (unsigned)(size - got));
+            if (n <= 0) break;
+            got += n;
+        }
+        _close(fd);
+        *err = buf;
+        *err_len = buf ? (size_t)got : 0;
+    }
+    _unlink(path);
+    return result;
 }
 
 /* ---- the testing allocator ---- */
