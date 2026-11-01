@@ -1,0 +1,5 @@
+# Imports through `aliases` in helix.jsonc.
+$ build run
+area 12, twice 42
+$ build test
+PASS src/main.spec.hx

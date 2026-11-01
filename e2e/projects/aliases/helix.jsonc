@@ -1,0 +1,10 @@
+{
+  "name": "aliases",
+  "version": "0.1.0",
+  "bin": { "aliases": "src/main.hx" },
+  // `@shapes/circle` is src/geometry/shapes/circle.hx; `@util` alone is src/util/index.hx
+  "aliases": {
+    "@shapes": "src/geometry/shapes",
+    "@util": "./src/util/",
+  },
+}

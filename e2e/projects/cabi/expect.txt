@@ -1,0 +1,28 @@
+# Structs passed to C and returned from it by value, C calling exported Helix functions and Helix callbacks, C
+# globals and variadic C function pointers all follow the C ABI. The Windows and wasm32 lines check those targets' rules.
+# src/shapes.hx was made by `helix translate-c c/shapes.h -o src/shapes.hx`.
+$ build run
+pair 2 1
+triple 11 12 13
+vec2 3 5
+vec3 -3 6 -3
+quat -1 -2 -3 -4
+mixed 2 8
+big 11 22 33 44 55
+color 255 127 0 9
+many 219
+call_helix 11025114 + 15
+globals 6 from C
+variadic 42 pointer
+callbacks 101009 60
+$ build --target x86_64-macos
+$ ir src/main.hx --target x86_64-windows-gnu
+declare void @big_sum(ptr sret(%main.Big), ptr, ptr)
+$ ir src/main.hx --target wasm32-wasi
+declare void @big_sum(ptr sret(%main.Big), ptr byval(%main.Big), ptr byval(%main.Big))
+$ translate-c c/shapes.h
+export extern "C" struct Vec3 {
+export extern "C" function big_sum(a: Big, b: Big): Big;
+export extern "C" function many(a: Pair, b: Vec2, c: Big, d: Mixed, e: i32, f: Color): i64;
+export extern "C" let counter: i32;
+export type pair_fn = ?extern "C" (a0: Pair, a1: Big) => Pair;

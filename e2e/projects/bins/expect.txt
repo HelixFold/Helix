@@ -1,0 +1,15 @@
+# helix.jsonc's `bin` is built, run and tested with no step in build.hx; build.hx only adds options to it
+# (b.bin), and --target / --mode are the runner's own flags.
+$ build run
+hello from greet
+$ build run -Dgreeting=hi
+hi from greet
+$ build test
+PASS src/main.spec.hx
+$ build --target x86_64-macos --mode release-safe
+$ build --help
+--target t
+greeting=[string]
+$ build release-ls
+greet.exe
+greet

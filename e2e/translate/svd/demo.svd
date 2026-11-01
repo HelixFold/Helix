@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A made-up chip for tests/run.sh: each thing `helix translate-svd` reads, once. -->
+<device schemaVersion="1.1">
+  <name>DEMO1</name>
+  <description>A demo chip &amp; its peripherals</description>
+  <cpu><name>CM4</name><fpuPresent>true</fpuPresent></cpu>
+  <size>32</size>
+  <peripherals>
+    <peripheral>
+      <name>GPIOA</name>
+      <groupName>GPIO</groupName>
+      <description>General-purpose I/O</description>
+      <baseAddress>0x40020000</baseAddress>
+      <registers>
+        <register>
+          <name>MODER</name>
+          <description>Mode   register,
+            spread over lines</description>
+          <addressOffset>0x0</addressOffset>
+          <fields>
+            <field>
+              <name>MODER%s</name>
+              <description>Pin mode</description>
+              <dim>4</dim><dimIncrement>2</dimIncrement>
+              <bitOffset>0</bitOffset><bitWidth>2</bitWidth>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>ODR</name>
+          <description>Output data</description>
+          <addressOffset>0x14</addressOffset>
+          <fields>
+            <field><name>OD0</name><lsb>0</lsb><msb>0</msb></field>
+            <field><name>OD1</name><bitRange>[1:1]</bitRange></field>
+            <field><name>OUT_ALIAS</name><description>Same bit as OD0</description><bitOffset>0</bitOffset><bitWidth>1</bitWidth></field>
+          </fields>
+        </register>
+        <register>
+          <name>LCKR</name>
+          <description>Lock register, without fields</description>
+          <addressOffset>0x1C</addressOffset>
+        </register>
+      </registers>
+    </peripheral>
+    <peripheral derivedFrom="GPIOA">
+      <name>GPIOB</name>
+      <baseAddress>0x40020400</baseAddress>
+    </peripheral>
+    <peripheral>
+      <name>TIMER</name>
+      <description>A 16-bit timer</description>
+      <baseAddress>0x40000000</baseAddress>
+      <registers>
+        <register>
+          <name>CNT</name>
+          <description>Counter</description>
+          <addressOffset>0x24</addressOffset>
+          <size>16</size>
+          <fields><field><name>type</name><description>a keyword as a name</description><bitOffset>0</bitOffset><bitWidth>16</bitWidth></field></fields>
+        </register>
+        <register>
+          <name>CCR[%s]</name>
+          <description>Capture/compare</description>
+          <dim>2</dim><dimIncrement>4</dimIncrement>
+          <addressOffset>0x34</addressOffset>
+          <fields><field><name>CCR</name><bitOffset>0</bitOffset><bitWidth>16</bitWidth></field></fields>
+        </register>
+        <cluster>
+          <name>CH%s</name>
+          <dim>2</dim><dimIncrement>0x10</dimIncrement><dimIndex>A,B</dimIndex>
+          <addressOffset>0x40</addressOffset>
+          <register>
+            <name>CTRL</name>
+            <description>Channel control</description>
+            <addressOffset>0x0</addressOffset>
+            <fields><field><name>EN</name><bitOffset>31</bitOffset><bitWidth>1</bitWidth></field></fields>
+          </register>
+        </cluster>
+      </registers>
+      <interrupt><name>TIMER</name><description>Timer update</description><value>28</value></interrupt>
+    </peripheral>
+    <peripheral>
+      <name>UART0</name>
+      <description>Serial port</description>
+      <baseAddress>0x40004000</baseAddress>
+      <registers>
+        <register>
+          <name>DATA</name>
+          <description>Data &lt;8 bits&gt;</description>
+          <addressOffset>0x0</addressOffset>
+          <size>8</size>
+        </register>
+      </registers>
+      <interrupt><name>UART0</name><value>5</value></interrupt>
+    </peripheral>
+  </peripherals>
+</device>
