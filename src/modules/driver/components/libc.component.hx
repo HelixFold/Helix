@@ -299,7 +299,10 @@ export function appleLinker(): ?string {
  * @returns The SDK and its version, or `null` when no candidate has a readable version
  *
  * @remarks
- * It tries `$SDKROOT`, then the SDK of Xcode, then the SDK of the command-line tools.
+ * It tries `$SDKROOT`, then the SDK of Xcode, then the SDK of the command-line tools,
+ * then the trimmed SDK in `lib/sdk/MacOSX.sdk` that a release ships,
+ * which holds only the headers and the stubs of `libSystem` and `libc++`.
+ * So a release builds for macOS on Linux and Windows, and a full SDK on a Mac still comes first.
  * The version is the `"Version"` value in the first 8191 bytes of `SDKSettings.json`, where it sits near the top.
  *
  * @example
@@ -312,10 +315,11 @@ export function appleLinker(): ?string {
  */
 
 export function macosSdk(): ?Sdk {
-    const candidates: string[3] = [
+    const candidates: string[4] = [
         os.getenv("SDKROOT") ?? "",
         "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
         "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+        os.besideCompiler("lib/sdk/MacOSX.sdk") ?? "",
     ];
     for (const candidate of candidates) {
         if (candidate.len == 0) continue;
@@ -429,8 +433,9 @@ function fileSha256(path: string): ?string {
  *
  * @remarks
  * A `.unpacked` file in the folder marks a tree that is ready.
- * The archive is looked for in `<helix home>/src`, then in the `lib/src` folder of a release,
- * so a release needs no network.
+ * A release ships the trees unpacked in its `lib/src` folder, so it needs no network, `curl`, or `tar`,
+ * and the builds only read from them.
+ * Otherwise the archive is looked for in `<helix home>/src`, then in the `lib/src` folder of a release.
  * Only when neither has the pinned hash does `curl` download the archive.
  * A download with another hash is deleted, and `tar` then unpacks the archive into `<helix home>/src`.
  *
@@ -438,6 +443,9 @@ function fileSha256(path: string): ?string {
  */
 
 function sourceTree(url: string, sha256: string, folder: string): ?string {
+    if (const shipped = os.besideCompiler(allocCString(`lib/src/${folder}/.unpacked`))) {
+        if (const slash = os.lastIndex(shipped, '/')) return shipped[0..slash];
+    }
     const src = os.helixHome("src");
     const out = allocCString(`${src}/${folder}`);
     const done = allocCString(`${out}/.unpacked`);
