@@ -33,7 +33,6 @@ C compiles with the clang of its own LLVM, programs link with lld, and debug inf
 dsymutil.
 
 - **macOS** programs link against the macOS SDK, found in `$SDKROOT`, Xcode, or the command-line tools.
-  Apple's SDK can't be shipped, so building for macOS from Linux needs `SDKROOT` to point at a copy.
 - **Linux** programs are static, so they run on any Linux.
   The C library is musl, built from source the first time a build needs it, with compiler-rt's builtins.
   The result stays in `$HELIX_HOME/libc/<target>`.
@@ -41,6 +40,11 @@ dsymutil.
   Helix makes their import libraries itself, so there is nothing else to install.
 - **WASI** programs link against wasi-libc, built from source like musl.
   `wasmtime app.wasm` runs one, and so does Node's WASI.
+::: warning 🍎 The macOS SDK
+Apple's SDK can't be shipped with Helix, so building for macOS from Linux needs `SDKROOT` to point at a copy.
+CI does this with the `macos-sdk` option of `.github/actions/setup-helix`.
+:::
+
 - **arm64e** is arm64 with pointer authentication: function pointers and return addresses are signed, so a corrupted
   one traps instead of being followed.
   It links with Apple's `ld` from the command-line tools.
@@ -58,19 +62,20 @@ The CI toolchain in `.github/bootstrap` does.
 The program connects the runtime to its hardware with two `export extern "C"` functions:
 `helix_console_write`, where `println` and panics go, and `helix_halt`, what a panic or the end of `main` does.
 
-```hx
+::: code-group
+```hx [kernel.hx]
 // QEMU's riscv64 `virt` board: a UART at 0x1000_0000, and a test device that powers it off.
 const Uart: usize = 0x1000_0000;
 const TestDevice: usize = 0x10_0000;
 
-export extern "C" function helix_console_write(bytes: readonly u8[*], len: usize): void {
+export extern "C" function helix_console_write(bytes: readonly u8[*], len: usize): void { // [!code highlight]
     unsafe {
         const uart = @ptrFromInt(*u8, Uart);
         for (const i of 0..len) @volatileStore(uart, bytes[i]);
     }
 }
 
-export extern "C" function helix_halt(): noreturn {
+export extern "C" function helix_halt(): noreturn { // [!code highlight]
     unsafe {
         @volatileStore(@ptrFromInt(*u32, TestDevice), 0x5555);
     }
@@ -86,11 +91,12 @@ export function main(): void {
 }
 ```
 
-```bash
+```bash [run in QEMU]
 helix build kernel.hx --target riscv64-freestanding -o kernel
 qemu-system-riscv64 -machine virt -bios none -nographic -kernel kernel
 # Hello from Helix without an OS: fib(20) = 6765
 ```
+:::
 
 - `_start` sets up the stack, zeroes `.bss`, and calls `main`, which takes no `Init`.
 - The default memory layout is QEMU's `virt` board, and `--linker-script board.ld` gives another.
@@ -149,7 +155,7 @@ helix translate-svd STM32F405.svd -o src/stm32f405.hx
 ```hx
 import { GPIOA, TIMER, UART0, Interrupt, enableInterrupt } from "./chip";
 
-export extern "C" function IRQ28_Handler(): void {
+export extern "C" function IRQ28_Handler(): void {   // runs on interrupt 28 // [!code focus:3]
     TIMER.CHA_CTRL.clear(.EN);
 }
 

@@ -1,8 +1,10 @@
 # Standard Library
 
 `std` ships with the compiler and is written in Helix.
+::: tip 📚 What "std" gives
 `import { ... } from "std"` takes from `std/io`, `std/fs`, `std/text`, `std/heap`, `std/list`, and `std/process`.
 The other modules are imported by their own path, such as `"std/fmt"`.
+:::
 
 | Module        | Contents                                                                                                                    |
 |---------------|-----------------------------------------------------------------------------------------------------------------------------|
@@ -62,7 +64,7 @@ import * as fmt from "std/fmt";
 import { stdout, fprintln, cAllocator, free } from "std";
 
 const a = cAllocator();
-const label = try fmt.alloc(a, `user-${id}`);       // u8[] from `a`
+const label = try fmt.alloc(a, `user-${id}`);       // u8[] from `a` // [!code highlight]
 defer free(a, label);
 
 let buf: u8[32] = undefined;

@@ -9,9 +9,9 @@ const MaxUsers: usize = 1024;          // a constant, known while compiling
 const KiB = 1024;                      // an untyped number until it meets a type
 
 export function main(): void {
-    let count: i32 = 0;                // mutable, with a type
+    let count: i32 = 0;                // mutable, with a type // [!code highlight]
     count += 1;
-    const name = "ada";                // immutable, its type inferred as string
+    const name = "ada";                // immutable, its type inferred as string // [!code highlight]
     let buffer: u8[4] = undefined;     // explicitly uninitialized
     buffer[0] = 'h';
 
@@ -81,8 +81,8 @@ See [`std/fmt`](/reference/std#std-fmt).
 
 ```hx
 const big: i32 = 300;
-const small = big as u16;              // checked: panics in safe modes when it doesn't fit
-const low = @truncate(u8, big);        // keeps the low 8 bits: 44
+const small = big as u16;              // checked: panics in safe modes when it doesn't fit // [!code focus]
+const low = @truncate(u8, big);        // keeps the low 8 bits: 44 // [!code focus]
 const wide: i64 = big;                 // widening needs no cast
 ```
 
@@ -131,12 +131,28 @@ These never compile:
 | No dead code                   | a statement after `return`                 | unreachable code                  |
 
 A name that starts with `_` is exempt from the unused checks: `function f(_reserved: i32)`.
-Each error comes with a hint:
+Each error comes with a hint, and the fix is usually one word:
+
+```hx
+function compute(): i32 {
+    return 1;
+}
+
+export function main(): void {
+    compute();          // error: the result of `compute` is unused // [!code --]
+    void compute();     // dropped on purpose // [!code ++]
+}
+```
 
 ```text
 error: the result of `compute` is unused
   = hint: use it, or discard it on purpose: `void compute(...);`
 ```
+
+::: tip 💡 Why so strict
+Each rule catches a real bug: `name.trim();` does nothing, since `trim` returns a new slice,
+and `if (count)` hides whether zero was meant.
+:::
 
 ## See also
 

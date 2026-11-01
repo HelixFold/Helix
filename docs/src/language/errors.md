@@ -11,9 +11,9 @@ import { parseInt } from "std";
 error PortError { Empty, OutOfRange }
 
 function parsePort(text: string): u16 | Error {
-    if (text.len == 0) throw PortError.Empty;
-    const value = try parseInt(text);
-    if (value < 1 || value > 65535) throw PortError.OutOfRange;
+    if (text.len == 0) throw PortError.Empty; // [!code highlight]
+    const value = try parseInt(text); // [!code highlight]
+    if (value < 1 || value > 65535) throw PortError.OutOfRange; // [!code highlight]
     return value as u16;
 }
 ```
@@ -67,6 +67,14 @@ println(try kept);                                  // 22
 
 The compiler rejects an error that nobody handles:
 
+```hx
+function load(): void | Error {
+    parsePort("80");                // the error is ignored // [!code --]
+    const port = try parsePort("80"); // [!code ++]
+    println(port); // [!code ++]
+}
+```
+
 ```text
 error: the error from `f` is not handled
   = hint: pass it on with `try`, or handle it: `... catch (e) { ... }`
@@ -80,9 +88,9 @@ error: `try` passes errors on, but this function can't fail
 
 ```hx
 function steps(fail: bool): void | PortError {
-    defer println("defer: always");
-    errdefer println("errdefer: only on an error");
-    errdefer (e) {
+    defer println("defer: always"); // [!code focus]
+    errdefer println("errdefer: only on an error"); // [!code focus]
+    errdefer (e) { // [!code focus:3]
         println(`errdefer saw ${e}`);
     }
     if (fail) throw PortError.Empty;
@@ -97,6 +105,10 @@ errdefer saw Empty
 errdefer: only on an error
 defer: always
 ```
+
+::: tip 🧹 Pair each resource with its cleanup
+Write the `defer` on the line after what it cleans up, so the two never drift apart.
+:::
 
 1. Defers belong to their block, `{ }`, and run when it exits, also on each pass of a loop.
 2. They run last in, first out.
@@ -122,7 +134,7 @@ One that reaches it prints `error: <name>` on stderr, and the program exits with
 
 ```hx
 export function main(): void | Error {
-    const port = try parsePort("");
+    const port = try parsePort("");     // returns PortError.Empty from main // [!code warning]
     println(port);
 }
 ```

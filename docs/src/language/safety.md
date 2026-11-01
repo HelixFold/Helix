@@ -7,7 +7,7 @@ A failed check at run time is a panic: the message, the source line, and a stack
 
 ```hx
 function grow(level: i32): i32 {
-    return level * 2;
+    return level * 2;                       // 3_000_000_002 doesn't fit in i32 // [!code error]
 }
 
 export function main(): void {
@@ -65,8 +65,10 @@ With [`DebugAllocator`](/language/memory#allocators), memory mistakes stop at th
 | `release-fast`  | removed | measured hot paths                    |
 | `release-small` | removed | firmware and small binaries           |
 
+::: danger 💥 No checks in release-fast
 In `release-fast` and `release-small` the checks are gone, and overflow is undefined behavior.
 The program above prints `-1294967294` there instead of panicking.
+:::
 
 ## Checks while compiling
 

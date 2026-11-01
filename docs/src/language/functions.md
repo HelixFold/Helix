@@ -25,13 +25,13 @@ Arguments are passed by value.
 To let a function change a variable, pass a pointer to it:
 
 ```hx
-function bump(counter: *i32): void {
-    *counter += 1;
+function bump(counter: *i32): void { // [!code focus]
+    *counter += 1; // [!code focus]
 }
 
 export function main(): void {
     let hits: i32 = 0;
-    bump(&hits);
+    bump(&hits); // [!code focus]
     println(hits);                  // 1
 }
 ```
@@ -79,11 +79,18 @@ Capturing a local would need a hidden allocation, so an arrow function can only 
 ```hx
 export function main(): void {
     const limit: i32 = 3;
-    const over = (x: i32): bool => x > limit;   // error: an arrow function can't capture `limit`
+    const over = (x: i32): bool => x > limit;   // can't capture `limit` // [!code error]
 }
 ```
 
-Pass what it needs as a parameter instead.
+```text
+error: an arrow function can't capture `limit`
+```
+
+::: info 🔍 No hidden allocation
+A closure would have to store `limit` somewhere, and Helix never allocates behind your back.
+Pass what an arrow function needs as a parameter instead.
+:::
 
 ## Optional function values
 
