@@ -1,0 +1,10 @@
+{
+    "name": "stm32-hello",
+    "version": "0.1.0",
+    "bin": { "firmware": "src/main.hx" },
+    // QEMU's netduinoplus2 board has an STM32F405RG: its core, FPU, and memory decide the target, CPU, and linker
+    // script (`helix chips F405` lists the family). A chip that the table doesn't know is described instead:
+    //   "chip": { "cpu": "cortex-m4", "fpu": true, "flash": { "origin": "0x08000000", "size": "1M" },
+    //             "ram": { "origin": "0x20000000", "size": "128K" } }
+    "chip": "STM32F405RG",
+}
