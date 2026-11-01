@@ -18,6 +18,13 @@ jobs:
       - name: Build the compiler
         run: helix build
 
+      # The bootstrap's std/build installs into helix-out, and build.hx's steps run the compiler from .helix-out,
+      # so the new compiler builds itself once and goes first on PATH. A bootstrap built from this std needs no rebuild.
+      - name: Rebuild the compiler with itself
+        run: |
+          if [ ! -x .helix-out/bin/helix ]; then helix-out/bin/helix build; fi
+          echo "$PWD/.helix-out/bin" >> "$GITHUB_PATH"
+
       - name: Run the specs with the new compiler
         run: helix build test
 
