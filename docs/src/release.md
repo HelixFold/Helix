@@ -40,6 +40,8 @@ export function main(): void | Error {
   each test in its own process.
 - **Added**: [projects](projects/manifest) with `helix.jsonc` and [`build.hx`](projects/build),
   whose options are `--name=value`.
+- **Added**: [debugging](projects/debugging) with lldb or gdb, by Helix file and line,
+  and `helix build` installs the `.dSYM` debug info of each program beside it on macOS.
 - **Added**: [cross-compiling](projects/targets) for macOS, static Linux, Windows, WASI, boards without an OS, and
   Cortex-M microcontrollers, with `helix translate-svd`.
 - **Added**: [the standard library](reference/std): allocators, `ArrayList`, text, formatting, files, processes, JSON,
