@@ -853,11 +853,11 @@ function compilePackageC(options: readonly *Options, target: Target, m: readonly
  * It is always LLVM's clang, or `clang` from `PATH` without one.
  * For musl and WASI it uses the C library that Helix builds instead of the host's headers.
  * For macOS it uses the SDK's headers, and a freestanding target gets none.
- * Windows is an error, since Helix does not set up the mingw-w64 headers yet.
+ * For Windows it uses the mingw-w64 headers of the toolchain's sysroot, and it is an error without one.
  *
  * @example
  * ```hx
- * cCompiler(parseTarget("x86_64-windows")); // null, error: compiling C for Windows needs the mingw-w64 headers
+ * cCompiler(parseTarget("x86_64-windows")); // [ clang, "-target", "x86_64-w64-windows-gnu", "--sysroot=..." ]
  * cCompiler(parseTarget("riscv64-freestanding")).items; // [ clang, "-target", "riscv64-unknown-none-elf" ]
  * ```
  *
@@ -867,10 +867,18 @@ function compilePackageC(options: readonly *Options, target: Target, m: readonly
 export function cCompiler(target: Target): ?Strings {
     let cc = strings();
     const clang = llvmTool("clang") ?? "clang";
-    if (target.windows) {
-        eprintln("error: compiling C for Windows needs the mingw-w64 headers, which Helix doesn't set up yet");
-        eprintln("  = hint: Helix code builds for Windows; packages with C sources don't yet");
-        return null;
+    if (target.windows) {   // the LLVM clang, with the mingw-w64 headers of the toolchain's sysroot
+        const sysroot = toolchainSysroot(target);
+        if (sysroot == null) {
+            eprintln("error: compiling C for Windows needs the mingw-w64 headers, which this toolchain doesn't have");
+            eprintln(`  = hint: put a mingw-w64 sysroot in $HELIX_HOME/llvm/${platformOf(target)}/sysroot`);
+            return null;
+        }
+        add(&cc, clang);
+        add(&cc, "-target");
+        add(&cc, target.triple);
+        add(&cc, allocCString(`--sysroot=${sysroot}`));
+        return cc;
     }
     if (target.musl || target.wasi) {   // the LLVM clang, with the musl (or wasi-libc) Helix builds, not the host's headers
         const libc = targetLibc(target.triple);
@@ -1539,6 +1547,7 @@ export function targetLibc(triple: string): ?string {
  *
  * @param target - The target
  * @param name - The part: `runtime`, `test` for the test runner, or `start` for freestanding start code
+ * @param withCRuntime - Whether a Windows program also links mingw-w64's C runtime, which then starts it
  * @returns The object file, or `null` after reporting
  *
  * @remarks
@@ -1548,11 +1557,13 @@ export function targetLibc(triple: string): ?string {
  * So a changed runtime builds a new object, and two compilers with different runtimes never share one.
  * A freestanding target uses `lib/rt/freestanding.c`, with `cortex_m.c` or `freestanding_start.S` as start code.
  * The test runner cannot build for WASI or for a target without an OS.
+ * With `withCRuntime`, the Windows runtime leaves the entry point and the C functions to mingw-w64's C runtime
+ * (`HX_WITH_C_RUNTIME`), and its object gets a name of its own.
  *
  * @since 1.0.0
  */
 
-function runtimeObject(target: Target, name: string): ?string {
+function runtimeObject(target: Target, name: string, withCRuntime: bool): ?string {
     if (target.host) {
         const file = allocCString(`lib/${equal(name, "runtime") ? "helix_rt" : "helix_test"}.o`);
         if (const path = os.besideCompiler(file)) return path;
@@ -1575,7 +1586,7 @@ function runtimeObject(target: Target, name: string): ?string {
         return null;
     }
     // named after the text it's built from, so compilers that ship different runtimes never share an object
-    let key = "";
+    let key = withCRuntime ? "HX_WITH_C_RUNTIME" : "";
     const parts: string[3] = [file, "lib/rt/format.inc", "lib/rt/test_core.inc"];
     for (const part of parts) {
         if (const path = os.besideCompiler(part)) key = allocCString(`${key}\x00${os.readText(path) ?? ""}`);
@@ -1608,6 +1619,7 @@ function runtimeObject(target: Target, name: string): ?string {
         add(&args, "-std=gnu17");
         add(&args, "-O2");
         add(&args, "-fno-builtin");   // it defines snprintf itself
+        if (withCRuntime) add(&args, "-DHX_WITH_C_RUNTIME");
     } else if (target.musl || target.wasi) {   // against the musl (or wasi-libc) Helix builds, with the LLVM clang
         const libc = targetLibc(target.triple);
         if (libc == null) return null;
@@ -1704,6 +1716,34 @@ export function toolchainLlvmDir(target: Target): ?string {
     }
     const home = allocCString(`${os.helixHome("llvm")}/${platform}/lib`);
     if (os.readable(allocCString(`${home}/libLLVMCore.a`))) return home;
+    return null;
+}
+
+/**
+ * Finds the C library headers and files that the Helix toolchain ships for a target, as a sysroot.
+ *
+ * @param target - The target of the build
+ * @returns The sysroot, or `null` when the toolchain has none for the target
+ *
+ * @remarks
+ * It is the `sysroot` folder beside {@link toolchainLlvmDir}, so `lib/llvm/<platform>/sysroot`.
+ * Windows has one: mingw-w64's headers, startup files, and C runtime,
+ * which C sources compile against and which a program with C objects links.
+ *
+ * @example
+ * ```hx
+ * toolchainSysroot(parseTarget("x86_64-windows")!); // "/opt/helix/lib/llvm/x86_64-windows/sysroot"
+ * ```
+ *
+ * @see toolchainLlvmDir
+ * @since 1.0.0
+ */
+
+export function toolchainSysroot(target: Target): ?string {
+    if (const lib = toolchainLlvmDir(target)) {
+        const sysroot = allocCString(`${lib[0..os.lastIndex(lib, '/') ?? 0]}/sysroot`);
+        if (os.exists(allocCString(`${sysroot}/include`))) return sysroot;
+    }
     return null;
 }
 
@@ -1823,18 +1863,26 @@ function runLinker(args: readonly *Strings): bool {
  * @remarks
  * The inputs are the program, the Windows runtime, which has the entry point, what `--link` and `-l` add,
  * the import libraries of msvcrt.dll and kernel32.dll, and compiler-rt's builtins.
+ * A program with C objects or the toolchain's LLVM, such as the compiler, links mingw-w64's C runtime instead,
+ * from the toolchain's sysroot, as clang does for MinGW.
+ * Its startup files then start the program and run the C++ constructors that LLVM needs.
  *
+ * @see toolchainSysroot
  * @since 1.0.0
  */
 
 function linkWindows(options: readonly *Options, target: Target, object: string, output: string): bool {
     const libc = targetLibc(target.triple);
     if (libc == null) return false;
-    const runtime = runtimeObject(target, "runtime");
+    const sysroot = toolchainSysroot(target);
+    let withCRuntime = false;
+    for (const link of options.links.items) withCRuntime = withCRuntime || isLlvmLink(link) || endsWith(link, ".o");
+    withCRuntime = withCRuntime && sysroot != null;
+    const runtime = runtimeObject(target, "runtime", withCRuntime);
     if (runtime == null) return false;
     let testRuntime = "";
     if (options.test) {
-        const path = runtimeObject(target, "test");
+        const path = runtimeObject(target, "test", withCRuntime);
         if (path == null) return false;
         testRuntime = path;
     }
@@ -1845,19 +1893,44 @@ function linkWindows(options: readonly *Options, target: Target, object: string,
     add(&args, startsWith(target.triple, "aarch64") ? "arm64pe" : "i386pep");
     add(&args, "--subsystem");
     add(&args, "console");
-    add(&args, "-e");
-    add(&args, "mainCRTStartup");
+    if (!withCRuntime) {
+        add(&args, "-e");
+        add(&args, "mainCRTStartup");
+    }
     add(&args, "--gc-sections");
     add(&args, "-o");
     add(&args, output);
+    const crt = allocCString(`${sysroot ?? ""}/lib`);
+    if (withCRuntime) {
+        add(&args, "-Bstatic");
+        add(&args, allocCString(`${crt}/crt2.o`));
+        add(&args, allocCString(`${crt}/crtbegin.o`));
+    }
     add(&args, object);
     add(&args, runtime);
     if (options.test) add(&args, testRuntime);
     add(&args, allocCString(`-L${libc}/lib`));
-    for (const link of options.links.items) add(&args, link);
-    add(&args, "-lmsvcrt");
-    add(&args, "-lkernel32");
-    add(&args, allocCString(`${libc}/lib/libcompiler_rt.a`));
+    if (!withCRuntime) {
+        for (const link of options.links.items) add(&args, link);
+        add(&args, "-lmsvcrt");
+        add(&args, "-lkernel32");
+        add(&args, allocCString(`${libc}/lib/libcompiler_rt.a`));
+    } else {   // as clang links for MinGW: the C++ runtime is in the toolchain's archives
+        add(&args, allocCString(`-L${crt}`));
+        const llvmLinked = addToolchainLlvm(&args, &options.links, target, true);
+        for (const link of options.links.items) {
+            if (!(llvmLinked && isLlvmLink(link))) add(&args, link);
+        }
+        const system: string[13] = [
+            "mingw32", "moldname", "mingwex", "msvcrt", "advapi32", "shell32", "user32", "kernel32",
+            "ole32", "uuid", "version", "psapi", "ntdll",
+        ];
+        add(&args, "--start-group");
+        for (const lib of system) add(&args, allocCString(`${crt}/lib${lib}.a`));
+        add(&args, allocCString(`${libc}/lib/libcompiler_rt.a`));
+        add(&args, "--end-group");
+        add(&args, allocCString(`${crt}/crtend.o`));
+    }
     if (options.strip) add(&args, "--strip-all");
     return runLinker(&args);
 }
@@ -1881,11 +1954,11 @@ function linkWindows(options: readonly *Options, target: Target, object: string,
 function linkMusl(options: readonly *Options, target: Target, object: string, output: string): bool {
     const libc = targetLibc(target.triple);
     if (libc == null) return false;
-    const runtime = runtimeObject(target, "runtime");
+    const runtime = runtimeObject(target, "runtime", false);
     if (runtime == null) return false;
     let testRuntime = "";
     if (options.test) {
-        const path = runtimeObject(target, "test");
+        const path = runtimeObject(target, "test", false);
         if (path == null) return false;
         testRuntime = path;
     }
@@ -1962,8 +2035,8 @@ function linkFreestanding(options: readonly *Options, target: Target, object: st
     if (rtDir == null) return false;
     const builtins = libcEnsure(target.triple, rtDir);
     if (builtins == null) return false;
-    const start = runtimeObject(target, "start");
-    const runtime = runtimeObject(target, "runtime");
+    const start = runtimeObject(target, "start", false);
+    const runtime = runtimeObject(target, "runtime", false);
     if (start == null || runtime == null) return false;
     let args = strings();
     add(&args, "ld.lld");
@@ -2311,9 +2384,9 @@ export function applyChip(options: *Options): bool {
 function linkWasi(options: readonly *Options, target: Target, object: string, output: string): bool {
     const libc = targetLibc(target.triple);
     if (libc == null) return false;
-    const runtime = runtimeObject(target, "runtime");
+    const runtime = runtimeObject(target, "runtime", false);
     if (runtime == null) return false;
-    if (options.test && runtimeObject(target, "test") == null) return false;   // reports that there's no runner yet
+    if (options.test && runtimeObject(target, "test", false) == null) return false;   // reports that there's no runner yet
     if (!targetLibrariesExist(options, target, libc)) return false;
     let args = strings();
     add(&args, "wasm-ld");
@@ -2398,11 +2471,11 @@ function addLlvmLibraryDir(args: *Strings, links: readonly *Strings): void {
  */
 
 function linkMacos(options: readonly *Options, target: Target, object: string, output: string, debugInfo: bool): bool {
-    const runtime = runtimeObject(target, "runtime");
+    const runtime = runtimeObject(target, "runtime", false);
     if (runtime == null) return false;
     let testRuntime = "";
     if (options.test) {
-        const path = runtimeObject(target, "test");
+        const path = runtimeObject(target, "test", false);
         if (path == null) return false;
         testRuntime = path;
     }

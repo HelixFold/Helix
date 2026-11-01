@@ -9,9 +9,9 @@ import * as os from "@modules/driver/components/os.component";
 import { ModeDebug } from "@modules/codegen/constants/base.constant";
 import { allocCString } from "@modules/driver/components/os.component";
 import { Options } from "@modules/driver/components/structs/compile-component.struct";
-import { parseTarget, setOverlay, setQuiet } from "@modules/driver/components/compile.component";
 import { buildExecutable, defaultOptions, compileFront } from "@modules/driver/components/compile.component";
 import { addPackageArg, packageDir, cCompiler, applyChip } from "@modules/driver/components/compile.component";
+import { parseTarget, setOverlay, setQuiet, toolchainSysroot } from "@modules/driver/components/compile.component";
 import { compilationFree, clearPackageArgs, parseCompileOption } from "@modules/driver/components/compile.component";
 
 /**
@@ -385,10 +385,15 @@ describe("cCompiler") {
         expect(cc.items[2]).toBe("riscv64-unknown-none-elf");
     }
 
-    test("should refuse Windows, whose headers Helix does not set up") {
+    test("should use the toolchain's mingw-w64 sysroot for Windows, and refuse Windows without one") {
         const target = parseTarget("x86_64-windows") ?? unreachable;
+        const cc = cCompiler(target);
 
-        expect(cCompiler(target)).toBeNull();
+        if (const sysroot = toolchainSysroot(target)) {
+            expect((cc ?? unreachable).items[3]).toBe(allocCString(`--sysroot=${sysroot}`));
+        } else {
+            expect(cc).toBeNull();
+        }
     }
 }
 
