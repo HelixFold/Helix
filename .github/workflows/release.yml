@@ -68,12 +68,14 @@ jobs:
       - name: Package
         run: |
           mkdir dist
+          # each platform's whole folder, as helix-<version>-<platform>/: the compiler and its lib folder
           for dir in release/*/; do
               target=$(basename "$dir")
               name=helix-$GITHUB_REF_NAME-$target
+              mv "$dir" "release/$name"
               case $target in
-                  *-windows) (cd "$dir" && zip -q "$GITHUB_WORKSPACE/dist/$name.zip" helix.exe) ;;
-                  *) chmod +x "$dir/helix" && tar -czf "dist/$name.tar.gz" -C "$dir" helix ;;
+                  *-windows) (cd release && zip -qr "$GITHUB_WORKSPACE/dist/$name.zip" "$name") ;;
+                  *) chmod +x "release/$name/helix" release/"$name"/lib/llvm/bin/* && tar -cJf "dist/$name.tar.xz" -C release "$name" ;;
               esac
           done
           (cd dist && sha256sum * > SHA256SUMS)
