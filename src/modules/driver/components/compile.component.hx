@@ -1532,7 +1532,8 @@ export function targetLibc(triple: string): ?string {
  * @remarks
  * For the host it is `lib/helix_rt.o` or `lib/helix_test.o` next to the compiler when a release ships them.
  * Otherwise, and for every other target, it compiles the runtime's C source with `clang -target`
- * and caches it in `$HELIX_HOME/rt/<triple>`, where it is rebuilt when the source or its includes are newer.
+ * and caches it in `$HELIX_HOME/rt/<triple>`, named after a hash of the source and the files that it includes.
+ * So a changed runtime builds a new object, and two compilers with different runtimes never share one.
  * A freestanding target uses `lib/rt/freestanding.c`, with `cortex_m.c` or `freestanding_start.S` as start code.
  * The test runner cannot build for WASI or for a target without an OS.
  *
@@ -1561,18 +1562,15 @@ function runtimeObject(target: Target, name: string): ?string {
         eprintln(`error: the runtime's source (${file}) is missing next to the compiler`);
         return null;
     }
-    const dir = allocCString(`${os.helixHome("rt")}/${target.triple}`);
-    const out = allocCString(`${dir}/${name}.o`);
-    if (const obj = os.stat(out, false)) {   // built since the source, and the files it includes, last changed
-        let current = true;
-        const parts: string[3] = [file, "lib/rt/format.inc", "lib/rt/test_core.inc"];
-        for (const part of parts) {
-            if (const path = os.besideCompiler(part)) {
-                if (const src = os.stat(path, false)) current = current && obj.mtime >= src.mtime;
-            }
-        }
-        if (current) return out;
+    // named after the text it's built from, so compilers that ship different runtimes never share an object
+    let key = "";
+    const parts: string[3] = [file, "lib/rt/format.inc", "lib/rt/test_core.inc"];
+    for (const part of parts) {
+        if (const path = os.besideCompiler(part)) key = allocCString(`${key}\x00${os.readText(path) ?? ""}`);
     }
+    const dir = allocCString(`${os.helixHome("rt")}/${target.triple}`);
+    const out = allocCString(`${dir}/${name}-${sha256Hex(key)[0..16]}.o`);
+    if (os.exists(out)) return out;
 
     const partial = allocCString(`${out}.${os.pid()}`);
     const clang = llvmTool("clang") ?? "clang";
