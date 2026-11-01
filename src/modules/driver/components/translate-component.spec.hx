@@ -34,17 +34,18 @@ function text(template: Format): string {
 /**
  * Whether this machine has the C library headers, such as `stdio.h`.
  *
- * @returns `true` when a macOS SDK or `/usr/include/stdio.h` exists
+ * @returns `true` on a Mac with an SDK, or elsewhere when `/usr/include/stdio.h` exists
  *
  * @remarks
- * A bare container has no system headers,
- * so the case that includes `stdio.h` runs only where the C library headers exist.
+ * Off a Mac the translator reads the headers of the host, never those of a macOS SDK that `SDKROOT` names,
+ * and a bare container has none, so the case that includes `stdio.h` runs only where they exist.
  *
  * @since 1.0.0
  */
 
 function hasSystemHeaders(): bool {
-    return macosSdk() != null || exists("/usr/include/stdio.h");
+    if (exists("/System/Library/CoreServices/SystemVersion.plist")) return macosSdk() != null;
+    return exists("/usr/include/stdio.h");
 }
 
 /**

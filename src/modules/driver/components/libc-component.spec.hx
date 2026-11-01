@@ -5,11 +5,11 @@
 import * as fmt from "std/fmt";
 import { cAllocator } from "std";
 import { endsWith, indexOf } from "std/text";
-import { appleLinker } from "@modules/driver/components/libc.component";
-import { strings, add, exists } from "@modules/driver/components/os.component";
+import { clangResourceDir } from "@modules/driver/components/libc.component";
 import { Strings } from "@modules/driver/components/structs/os-component.struct";
-import { bareMetal, libcEnsure, llvmTool, findTool, addLinker } from "@modules/driver/components/libc.component";
-import { bareMetalFlags, macosSdk, macosVersion, clangResourceDir } from "@modules/driver/components/libc.component";
+import { strings, add, exists, getenv } from "@modules/driver/components/os.component";
+import { addLinker, bareMetalFlags, macosSdk, macosVersion } from "@modules/driver/components/libc.component";
+import { appleLinker, bareMetal, libcEnsure, llvmTool, findTool } from "@modules/driver/components/libc.component";
 
 /**
  * Tests
@@ -100,8 +100,8 @@ describe("addLinker") {
  * @returns `true` when the system version file of macOS exists
  *
  * @remarks
- * Only a Mac has an SDK and a macOS version,
- * so the cases for them expect a value on a Mac and `null` on any other machine.
+ * Only a Mac has a macOS version, and only a Mac or a machine with `SDKROOT` set has an SDK,
+ * so the cases for them expect a value there and `null` on any other machine.
  *
  * @since 1.0.0
  */
@@ -117,10 +117,10 @@ describe("appleLinker") {
 }
 
 describe("macosSdk") {
-    test("should find an SDK with the version from its settings file on a Mac") {
+    test("should find an SDK with the version from its settings file on a Mac or through SDKROOT") {
         const sdk = macosSdk();
 
-        expect(sdk != null).toBe(onMac());
+        expect(sdk != null).toBe(onMac() || getenv("SDKROOT") != null);
         if (const found = sdk) {
             expect(endsWith(found.path, ".sdk")).toBeTrue();
             expect(indexOf(found.version, ".") != null).toBeTrue();
