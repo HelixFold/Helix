@@ -1957,6 +1957,35 @@ function executableSuffix(target: ?string): string {
 }
 
 /**
+ * Copies a folder and everything in it.
+ *
+ * @param b - The build, whose allocator holds the paths
+ * @param from - The folder to copy
+ * @param to - The new folder, made when it is missing
+ * @returns Nothing, or the error that stopped the copy
+ *
+ * @remarks
+ * The install step uses it for the `.dSYM` folder in which macOS keeps the debug info of a program.
+ *
+ * @since 1.0.0
+ */
+
+function copyFolder(b: *Build, from: string, to: string): void | Error {
+    try fs.makePath(to);
+    let folder = try fs.Dir.open(from);
+    defer folder.close();
+    while (const name = try folder.next()) {
+        const source = try fmt.alloc(b.a, `${from}/${name}`);
+        const target = try fmt.alloc(b.a, `${to}/${name}`);
+        if ((try fs.stat(source)).kind == fs.Kind.Directory) {
+            try copyFolder(b, source, target);
+        } else {
+            try fs.copyFile(source, target);
+        }
+    }
+}
+
+/**
  * Whether two artifacts have the same target.
  *
  * @param x - The first target, or null for this machine
@@ -2092,7 +2121,8 @@ function artifactOptions(b: *Build, index: usize, target: ?string, mode: Mode, a
  * @remarks
  * A step that this run already performed does nothing.
  * - **Group** - nothing beyond its dependencies
- * - **Install** - builds the artifact and copies it to `.helix-out/<dir>/`
+ * - **Install** - builds the artifact and copies it to `.helix-out/<dir>/`,
+ *   with the `.dSYM` folder that holds its debug info on macOS, so a debugger finds the installed program's lines
  * - **Run** - builds the artifact and runs it with the arguments after `--`,
  *   ending the process with the status of the program when that status is not 0
  * - **Test** - runs `helix test <root> --mode <mode>`, with `--target` and the code of `linkWith` when set
@@ -2114,6 +2144,10 @@ function make(b: *Build, index: usize): void | Error {
             try fs.makePath(dir);
             const installed = try fmt.alloc(b.a, `${dir}/${art.name}${executableSuffix(art.target)}`);
             try fs.copyFile(art.output, installed);
+            const symbols = try fmt.alloc(b.a, `${art.output}.dSYM`);
+            const copied = try fmt.alloc(b.a, `${installed}.dSYM`);
+            if (fs.exists(copied)) try fs.deleteTree(copied);   // debug info of an earlier build no longer matches
+            if (fs.exists(symbols)) try copyFolder(b, symbols, copied);
             if (b.verbose) eprintln(`installed ${installed}`);
         }
         case StepKind.Run: {

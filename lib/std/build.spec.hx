@@ -25,11 +25,12 @@ extern "C" function getpid(): i32;
  * With `/bin/sh` as the compiler, each of those runs the file named `build`, `cc`, or `test` in the project folder.
  * The script logs its name and arguments to `log.txt`,
  * and writes an executable script at the path after `-o` that logs `ran` and its own arguments when it runs.
+ * Beside that script it writes a `.dSYM` folder, as a build for macOS does.
  *
  * @since 1.0.0
  */
 
-const FakeCompiler: string = "echo \"$0 $*\" >> log.txt\nprev=\nfor a in \"$@\"; do\n    if [ \"$prev\" = -o ]; then printf '#!/bin/sh\\necho \"ran $*\" >> log.txt\\n' > \"$a\"; chmod +x \"$a\"; fi\n    prev=$a\ndone\n";
+const FakeCompiler: string = "echo \"$0 $*\" >> log.txt\nprev=\nfor a in \"$@\"; do\n    if [ \"$prev\" = -o ]; then printf '#!/bin/sh\\necho \"ran $*\" >> log.txt\\n' > \"$a\"; chmod +x \"$a\"; mkdir -p \"$a.dSYM/Contents\"; echo dwarf > \"$a.dSYM/Contents/DWARF\"; fi\n    prev=$a\ndone\n";
 
 /**
  * The packages list of a project with one program, `app`, whose root is `src/main.hx`.
@@ -1006,6 +1007,17 @@ describe("Build") {
             expect(readIn(a, dir, "log.txt"))
                 .toBe("build tools/tool.hx -o .helix-cache/bin/host/release-fast/tool --mode release-fast --strip\n");
             expect(existsIn(a, dir, ".helix-out/bin/tool")).toBeTrue();
+            cleanUp();
+        }
+
+        test("should copy the debug info folder of the program beside it") {
+            let arena = ArenaAllocator.init(cAllocator());
+            defer arena.deinit();
+            const a = arena.allocator();
+            const dir = try project(a, "install-symbols", "");
+            void try runIn(a, dir, [], withInstall);
+
+            expect(readIn(a, dir, ".helix-out/bin/tool.dSYM/Contents/DWARF")).toBe("dwarf\n");
             cleanUp();
         }
 
