@@ -60,6 +60,19 @@ error: this points into `local`, a local that's gone once the function returns
   = hint: return the value itself, or allocate it (`create<T>(allocator)`) and return that pointer
 ```
 
+The compiler also rejects reading a variable before it has a value:
+
+```hx
+let n: i32 = undefined;
+println(n);                                 // nothing gave n a value // [!code error]
+```
+
+The check follows whole values, such as numbers, pointers, slices, and optionals.
+An assignment, `&n`, or a method that takes `*this` gives `n` its value, and after an `if` or a `switch` every branch
+that goes on must have given it one.
+Arrays, structs, and unions are filled piece by piece, so for them debug builds fill `undefined` memory with `0xAA`
+instead.
+
 Raw pointers are only indexed inside `unsafe { }`, which keeps every unchecked access easy to find.
 See [C Interop](/language/c-interop#unsafe).
 
@@ -114,6 +127,8 @@ export function main(): void | Error {
 
 `DebugAllocator` panics on a double free or a free of the wrong size, fills new memory with `0xAA`, and stops a use
 after free or an overrun at the access that does it, on macOS and Linux.
+`DebugAllocator.initUnguarded(backing)` keeps the other checks without the page guards, for programs with very many
+live allocations.
 `deinit()` prints each leak and returns how many there were:
 
 ```text

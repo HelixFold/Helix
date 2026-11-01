@@ -23,6 +23,12 @@ function parsePort(text: string): u16 | Error {
   `T | PortError` names the set, which a public API should do.
 - `throw` returns an error value. It is a visible `return`, not an exception.
 - The `|` form is only for errors, and `?T | E` is an optional that can also fail.
+- A function that names its set can't throw an error from another one:
+
+```text
+error: expected `PortError`, found `FsError`
+  = hint: add the error to the function's error set, or return `Error`
+```
 
 ## Handling an error
 

@@ -37,6 +37,15 @@ extern "C" const environ_size: usize;                       // a C global that H
 
 // a C function pointer: called with the C convention, and it may be variadic
 type Compare = ?extern "C" (a: ?readonly u8[*], b: ?readonly u8[*]) => i32;
+type Logger = ?extern "C" (format: readonly u8[*], ...) => i32;
+```
+
+Another module's `let` global, a C global among them, can be assigned through its namespace:
+
+```hx
+import * as c from "./c";
+
+c.counter += 1;
 ```
 
 Structs passed to or returned from `extern "C"` functions by value follow the target's C rules
@@ -66,6 +75,11 @@ export function main(): void {
     println(numbers);                                   // [1, 2, 3, 4, 5]
 }
 ```
+
+A Helix function whose signature passes structs by value gets a C entry point of its own when it becomes a callback.
+A function pointer held in a variable has no function to give an entry point to,
+so it converts only when nothing in its signature differs between Helix and C.
+Only C function types can be variadic, and the address of an `extern "C"` function has its C function type.
 
 ## unsafe
 
@@ -136,20 +150,27 @@ Wrap the raw declarations in a Helix API in another file: errors instead of retu
 pointer and a length.
 :::
 
-| C                               | Helix                                                            |
-|---------------------------------|------------------------------------------------------------------|
-| `int f(const char *s, ...);`    | `export extern "C" function f(s: ?readonly u8[*], ...): i32;`    |
-| `struct handle;`, never defined | `export extern "C" struct handle {}`, used only through pointers |
-| `typedef int (*cb)(int);`       | `export type cb = ?(a0: i32) => i32;`                            |
-| `enum color { RED };`           | `export type color = u32;` and `export const RED: color = 0;`    |
-| `T *`, `void *`                 | `?*T`, `?u8[*]`, and `const` becomes `readonly`                  |
-| `size_t`, `uint32_t`, `bool`    | `usize`, `u32`, `bool`                                           |
+| C                                                | Helix                                                            |
+|--------------------------------------------------|------------------------------------------------------------------|
+| `int f(const char *s, ...);`                     | `export extern "C" function f(s: ?readonly u8[*], ...): i32;`    |
+| `struct handle;`, never defined                  | `export extern "C" struct handle {}`, used only through pointers |
+| `typedef int (*cb)(int);`                        | `export type cb = ?(a0: i32) => i32;`                            |
+| `enum color { RED };`                            | `export type color = u32;` and `export const RED: color = 0;`    |
+| `T *`, `void *`                                  | `?*T`, `?u8[*]`, and `const` becomes `readonly`                  |
+| `size_t`, `uint32_t`, `bool`                     | `usize`, `u32`, `bool`                                           |
+| a union, a struct with bit fields                | a struct with only its size and alignment: `_bytes: u32[2]`      |
+| `struct { int a; } inner;` inside `struct outer` | a struct of its own, `outer_inner`                               |
+| `int v[]` as a parameter                         | `?i32[*]`                                                        |
+| `#define MAX 64`, `0x1.0p-1`, `'A'`              | `export const MAX = 64;`, `0.5`, `65`                            |
+| `struct stat` next to `stat()`                   | `struct_stat`, so the two names don't clash                      |
 
 - It translates the header and the headers it includes from its own folder.
   `--dir` takes every header under the folder, and `--all` everything clang saw.
 - `-I`, `-D`, and other clang options pass through, and `--target` sizes `long` for that target.
 - What Helix can't express is left out with a comment that says why:
-  `long double`, function-like macros, `static inline` functions, and functions without a prototype.
+  `long double`, `_Float16`, SIMD vectors, Apple blocks, `static` and `inline` functions, `static` and thread-local
+  variables, functions without a prototype, and names that are Helix keywords.
+  Function-like macros are left out too.
 
 `helix translate-svd` does the same for a microcontroller's registers.
 See [Targets](/projects/targets#microcontrollers).
@@ -158,6 +179,11 @@ See [Targets](/projects/targets#microcontrollers).
 
 A package lists its C files in `helix.jsonc`, and `build.hx` can add more.
 The compiler builds them with its own clang for whatever target the program is built for.
+
+::: info 🧱 C for packages, not a C build tool
+Helix compiles C so that packages can wrap C libraries and still cross-compile.
+It doesn't run C build systems such as Make or CMake, and it doesn't compile C++.
+:::
 See [helix.jsonc](/projects/manifest#c) and [build.hx](/projects/build).
 
 ## See also

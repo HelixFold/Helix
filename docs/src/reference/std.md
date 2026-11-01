@@ -78,8 +78,18 @@ try fprintln(stdout(), `${label} ${pair} ${b.text()}`);     // user-7 3,4 [0][1]
 ```
 
 A parameter of type `Format` takes a template string.
-The template's values are evaluated at the call and formatted into the writer, so a `Format` can't be stored or
-returned.
+The template's values are evaluated at the call and kept on the caller's stack, next to a formatter that the compiler
+generates for that template, so a `Format` can't be stored or returned.
+Inside the function, `text.writeTo(w)` runs the formatter into a `dyn Writer`, and stops at the first write that fails:
+
+```hx
+import { Writer } from "std";                       // `Format` is built in, like `print`
+
+function line(w: dyn Writer, text: Format): void | Error {
+    try text.writeTo(w);
+    try w.write("\n");
+}
+```
 
 ## std/fs
 
@@ -115,13 +125,13 @@ const out = try capture(a, ["echo", "hi"]);             // its stdout, in memory
 const slow = try captureAllWith(a, ["make"], CaptureOptions { dir: "build", timeout: 3000 });
 ```
 
-| Function                           | Does                                             |
-|------------------------------------|--------------------------------------------------|
-| `run(argv)`                        | runs a program and waits for it                  |
-| `capture(a, argv)`                 | the same, with its stdout in memory              |
-| `captureAll(a, argv)`              | the same, with stdout and stderr apart           |
-| `captureAllWith(a, argv, options)` | the same, in a folder and with a time limit      |
-| `exit(code)`                       | ends the program at once, without running defers |
+| Function                           | Does                                                                          |
+|------------------------------------|-------------------------------------------------------------------------------|
+| `run(argv)`                        | runs a program and waits for it                                               |
+| `capture(a, argv)`                 | the same, with its stdout in memory                                           |
+| `captureAll(a, argv)`              | the same, with stdout and stderr apart                                        |
+| `captureAllWith(a, argv, options)` | the same, in a folder and with a time limit                                   |
+| `exit(code)`                       | ends the program at once, without running defers, and flushes buffered output |
 
 `Init` and `Env` carry the command line and the environment (see [Functions](/language/functions#main)).
 

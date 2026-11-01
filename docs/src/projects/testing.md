@@ -52,6 +52,8 @@ Time:   0.21 s
   test blocks are left out of every build that isn't a test build.
 - A test body may use `try`, and an error that escapes it fails the test.
 - `it` is another name for `test`, and `test` and `describe` may also sit at the top level of a file.
+- `helix test` runs the tests of the file that it builds, not those of the files it imports, so each test runs once.
+- `helix build`, `run`, and `check` don't check test blocks at all, and `helix check --test` does.
 
 ## Fixtures and hooks
 
@@ -99,7 +101,12 @@ What `beforeAll` does is in every test's copy, and what a test does is in nobody
 :::
 
 `before*` hooks run outermost first, and `after*` hooks innermost first.
-A hook failing fails every test that it guards.
+A hook body and the first value of a fixture may use `try`, and a hook failing fails every test that it guards.
+A fixture follows the usual rules for variables: it needs a value, or `= undefined` when a hook sets it.
+
+On Windows, which has no fork, each test is a process of its own that first sets up the describes around it.
+The copy is just as fresh, but `beforeAll` runs once per test, so its side effects, such as printing, show for each
+test.
 
 ## expect and require
 
@@ -140,6 +147,15 @@ Tests:  1 failed, 1 todo, 6 passed, 8 total
 
 Errors are values, so `toThrow` takes the fallible call itself, with no closure.
 Matchers are type-checked: `expect(count).toBe("3")` is a compile error, not a failing test.
+So is `toBe` on a struct, which has no `==`:
+
+```text
+error: `toBe` compares with `==`, which `P` doesn't have
+  = hint: use `toEqual`, which compares field by field
+```
+
+`expect` and `require` work in tests and hooks only, so a `comptime` block can't use them.
+`toEqual` and `toContain` take an array literal where the subject is a slice: `expect(list.items).toEqual([1, 2])`.
 
 ## Modifiers
 
@@ -154,7 +170,11 @@ test.panics("should stop on a read past the end", "index out of bounds") { // [!
 
 describe.skip("legacy") { ... }
 describe.only("parser") { ... }
+
+test("should finish a large parse", { timeout: 10_000 }) { ... }   // the options of one test // [!code highlight]
 ```
+
+A test that runs past its timeout fails with `timed out after 10000 ms`.
 
 ## testing.allocator
 
@@ -181,6 +201,30 @@ for `*.spec.hx` files and other `.hx` files with a top-level `describe` or `test
 `--reporter teamcity` prints the messages that JetBrains IDEs show as a test tree.
 
 Output that a test writes is captured, and printed only when the test fails.
+
+A panic fails only its test, and shows where it happened:
+
+```text
+ FAIL use.spec.hx (2 tests, 1 panicked, 61.1 ms)
+
+  ✗ should stop (59 ms)
+    panic: index out of bounds: index 2, len 2
+     --> use.spec.hx:3:9
+    stack trace:
+      at test "should stop" (use.spec.hx:3)
+
+Tests:  1 panicked, 1 passed, 2 total
+```
+
+## How the runner works
+
+1. Each spec file is built on its own into a test binary.
+   Test bodies, each `describe`'s set-up, and its hooks become functions, and a table that the compiler generates
+   lists them in source order, so nothing is discovered at run time.
+   A spec that doesn't compile is reported, and the others still run.
+2. The binary walks the table.
+   Every `describe` runs in a forked process, and every test in a process forked from that one,
+   so a panic, a crash, or a timeout ends only that process, and its parent records the result.
 
 ## See also
 
