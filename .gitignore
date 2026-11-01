@@ -14,3 +14,8 @@ helix-out/
 # Editors
 .idea/
 .vscode/
+
+# Docs
+node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
