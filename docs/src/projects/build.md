@@ -126,6 +126,8 @@ and the script reads the first two as `b.target` and `b.mode`.
 | `addRunStep(artifact)`                                                       | replaces the `run` step                                                      |
 | `install(artifact)`                                                          | copies it into `.helix-out/bin` as part of `install`                         |
 | `addInstall(artifact, dir)`                                                  | a step that copies it into `.helix-out/<dir>`                                |
+| `addInstallFile(path, dir)`                                                  | a step that copies a file into `.helix-out/<dir>`, keeping its name          |
+| `addInstallFolder(path, dir)`                                                | a step that replaces `.helix-out/<dir>` with a copy of a folder              |
 | `step(name, description)`                                                    | a step of its own, and `dependOn(other)` orders steps                        |
 | `addSystemCommand(argv)`                                                     | a step that runs a program                                                   |
 
@@ -162,12 +164,12 @@ by starting `helix` and `helix cc`.
 
 ## Where things go
 
-| Path                                      | What                                                          |
-|-------------------------------------------|---------------------------------------------------------------|
-| `.helix-cache/build`                      | the compiled `build.hx` and its runner                        |
-| `.helix-cache/bin/<target>/<mode>/<name>` | each executable, with `.exe` for Windows and `.wasm` for WASI |
-| `.helix-out/bin`                          | what `install` copies, and the programs of `bin`              |
-| `.helix-out/<dir>`                        | what an `addInstall(artifact, dir)` step copies               |
+| Path                                      | What                                                                      |
+|-------------------------------------------|---------------------------------------------------------------------------|
+| `.helix-cache/build`                      | the compiled `build.hx` and its runner                                    |
+| `.helix-cache/bin/<target>/<mode>/<name>` | each executable, with `.exe` for Windows and `.wasm` for WASI             |
+| `.helix-out/bin`                          | what `install` copies, and the programs of `bin`                          |
+| `.helix-out/<dir>`                        | what an `addInstall`, `addInstallFile`, or `addInstallFolder` step copies |
 
 ## See also
 

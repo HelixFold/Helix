@@ -33,15 +33,19 @@ Targets are written `arch-os[-abi]`, and `native` is this machine.
 ## The toolchain
 
 `helix` doesn't run the system's `cc`, `ld`, `xcrun`, or `dsymutil`.
-C compiles with the clang of its own LLVM, programs link with lld, and debug info goes into a `.dSYM` with LLVM's
-dsymutil.
+C compiles with the clang of its own LLVM, and debug info goes into a `.dSYM` with LLVM's dsymutil.
+Programs link with lld, which is built into `helix` and runs inside it,
+so there is no linker to install for any target.
 
-- **macOS** programs link against the macOS SDK, found in `$SDKROOT`, Xcode, or the command-line tools.
+- **macOS** programs link against the macOS SDK, found in `$SDKROOT`, Xcode, or the command-line tools,
+  and otherwise in the trimmed copy that a release ships in `lib/sdk`.
 - **Linux** programs are static, so they run on any Linux.
   The C library is musl, built from source the first time a build needs it, with compiler-rt's builtins.
   The result stays in `$HELIX_HOME/libc/<target>`.
 - **Windows** programs import only `msvcrt.dll` and `kernel32.dll`, which every Windows has.
   Helix makes their import libraries itself, so there is nothing else to install.
+  C sources need mingw-w64's headers from a toolchain's `sysroot`,
+  and a program with C objects links mingw-w64's C runtime from there as well.
 - **WASI** programs link against wasi-libc, built from source like musl.
   `wasmtime app.wasm` runs one, and so does Node's WASI.
   A WASI program can't start other programs or read its own call stack,
@@ -49,9 +53,10 @@ dsymutil.
 - **System libraries** of the machine that builds, such as `-lz`, can't go into a program for another machine.
   Build the library from source as a package's C instead.
   musl's own `-lm`, `-lpthread`, and `-ldl` work, since they are part of its `libc.a`.
-::: warning 🍎 The macOS SDK
-Apple's SDK can't be shipped with Helix, so building for macOS from Linux needs `SDKROOT` to point at a copy.
-CI does this with the `macos-sdk` option of `.github/actions/setup-helix`.
+::: info 🍎 The macOS SDK
+A release ships a trimmed macOS SDK in `lib/sdk/MacOSX.sdk`: the headers and the stubs of `libSystem` and `libc++`.
+So any release builds for macOS, from Linux and Windows too, and a full SDK on a Mac still comes first.
+A macOS program built elsewhere has no `.dSYM`, since only the macOS release has dsymutil.
 :::
 
 - **arm64e** is arm64 with pointer authentication: function pointers and return addresses are signed, so a corrupted
@@ -59,9 +64,9 @@ CI does this with the `macos-sdk` option of `.github/actions/setup-helix`.
   It links with Apple's `ld` from the command-line tools.
 
 ::: tip 📦 Offline builds
-A toolchain can ship the C library sources in `$HELIX_HOME/src`, so the first build for a target needs no
-download.
-The CI toolchain in `.github/bootstrap` does.
+A release ships the C library sources unpacked in `lib/src`,
+so the first build for a target needs no download, `curl`, or `tar`.
+A toolchain can also keep the archives in `$HELIX_HOME/src`, as the CI toolchain in `.github/bootstrap` does.
 :::
 
 ## Without an OS

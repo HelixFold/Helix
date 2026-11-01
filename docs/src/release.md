@@ -44,6 +44,13 @@ export function main(): void | Error {
   and `helix build` installs the `.dSYM` debug info of each program beside it on macOS.
 - **Added**: [cross-compiling](projects/targets) for macOS, static Linux, Windows, WASI, boards without an OS, and
   Cortex-M microcontrollers, with `helix translate-svd`.
+- **Added**: [lld inside `helix`](projects/targets#the-toolchain), so linking for any target needs no linker
+  installed.
+- **Added**: `helix build release` builds a release for each of the six platforms, with clang, its headers,
+  the C library sources, and a trimmed macOS SDK beside the compiler,
+  so a release builds for every target, macOS included, with nothing installed.
+- **Added**: [`addInstallFile` and `addInstallFolder`](projects/build) in `std/build`, which copy files and folders
+  into `.helix-out`.
 - **Added**: [the standard library](reference/std): allocators, `ArrayList`, text, formatting, files, processes, JSON,
   and SHA-256.
 
