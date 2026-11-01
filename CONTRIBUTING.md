@@ -34,17 +34,34 @@ export HELIX_HOME="$HOME/.local/helix-1.0.0-alpha.0-x86_64-linux/lib"
 
 ### Build steps
 
-| Command               | Description                                                                      |
-|-----------------------|----------------------------------------------------------------------------------|
-| `helix build`         | Build the compiler into `.helix-out/bin/helix`.                                  |
-| `helix build test`    | Build the compiler, then run the specs in `src` and `lib` with it.               |
-| `helix build e2e`     | Build the compiler, then check it against the snippets in `e2e`.                 |
-| `helix build release` | Build the compiler in `release-safe` for this machine into `.helix-out/release`. |
-| `pnpm docs:dev`       | Serve the VitePress docs locally.                                                |
-| `pnpm docs:build`     | Build the docs, which fails on a broken link or a missing example.               |
+| Command               | Description                                                                                                     |
+|-----------------------|-----------------------------------------------------------------------------------------------------------------|
+| `helix build`         | Build the compiler into `.helix-out/bin/helix`.                                                                 |
+| `helix build test`    | Build the compiler, then run the specs in `src` and `lib` with it.                                              |
+| `helix build e2e`     | Build the compiler, then check it against the snippets in `e2e`.                                                |
+| `helix build release` | Build a release for every platform into `.helix-out/release/<platform>`, or one with `--platform=x86_64-linux`. |
+| `pnpm docs:dev`       | Serve the VitePress docs locally.                                                                               |
+| `pnpm docs:build`     | Build the docs, which fails on a broken link or a missing example.                                              |
 
 Run `helix build test` and `helix build e2e` before opening a pull request.
 CI runs both on Linux, with the macOS SDK so that the e2e projects also build for macOS.
+
+### Release builds
+
+`helix build release` makes `.helix-out/release/<platform>` for each platform, a folder that runs as it is:
+`helix` with LLVM, libclang, and lld linked in, `lib/std`, `lib/rt`, and `lib/chips`,
+clang, llvm-ar, and llvm-dlltool (and dsymutil for macOS) in `lib/llvm/bin`, clang's headers in `lib/llvm/lib/clang`,
+the unpacked sources of musl, compiler-rt, and wasi-libc in `lib/src`,
+and a trimmed macOS SDK in `lib/sdk/MacOSX.sdk`, so every release builds for macOS.
+
+Each platform needs its toolchain in `$HELIX_HOME/llvm/<platform>`:
+
+- `lib` holds the static LLVM, libclang, and lld, the C++ runtime for that platform, and clang's headers in `lib/clang`.
+- `bin` holds clang, llvm-ar, and llvm-dlltool, built for that platform.
+- `sysroot` holds mingw-w64's headers and C runtime, for Windows only.
+
+The C library sources come from `$HELIX_HOME/src`, where a build for each target unpacks them the first time.
+The trimmed macOS SDK in each release's `lib/sdk/MacOSX.sdk` comes from `$SDKROOT`, Xcode, or the command-line tools.
 
 ## Workflow
 
