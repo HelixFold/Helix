@@ -5,8 +5,13 @@ on:
     tags: [ "v*" ]
   workflow_dispatch:   # builds and checks every platform without publishing
 
+env:
+  # The prerelease whose assets hold each platform's toolchain: LLVM 23.1.4, clang and its tools, mingw-w64 for Windows.
+  TOOLCHAIN: toolchain-llvm-23.1.4
+
 jobs:
-  # Every platform, built on Linux by build.hx's `release` step into .helix-out/release/<target>.
+  # Every platform, which the bootstrap compiler builds with build.hx's `release` step,
+  # then one archive each: helix-<version>-<platform>.tar.xz, holding the folder helix-<version>-<platform>/.
   build:
     runs-on: ubuntu-24.04
     steps:
@@ -15,44 +20,63 @@ jobs:
         with:
           macos-sdk: true
 
-      # The bootstrap's std/build installs into helix-out, so the new compiler builds itself into .helix-out first.
-      - run: |
-          helix build
-          if [ ! -x .helix-out/bin/helix ]; then helix-out/bin/helix build; fi
-          .helix-out/bin/helix build release
+      # build.hx and the compiler find each platform's toolchain in $HELIX_HOME/llvm/<platform>
+      - name: Install the toolchains
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$TOOLCHAIN" --repo "$GITHUB_REPOSITORY" --pattern 'helix-toolchain-*.tar.xz' --dir "$RUNNER_TEMP"
+          for archive in "$RUNNER_TEMP"/helix-toolchain-*.tar.xz; do
+              tar -xJf "$archive" -C "$HELIX_HOME/llvm"
+              rm "$archive"
+          done
+
+      - name: Build the release with the bootstrap compiler
+        run: helix build release
+
+      - name: Package
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          mkdir dist
+          for dir in .helix-out/release/*/; do
+              platform=$(basename "$dir")
+              name=helix-$version-$platform
+              tar -cJf "dist/$name.tar.xz" -C .helix-out/release --transform "s|^$platform|$name|" "$platform"
+          done
+          (cd dist && sha256sum * > SHA256SUMS)
+
       - uses: actions/upload-artifact@v7
         with:
-          name: release
-          path: .helix-out/release/
-          include-hidden-files: true   # .helix-out starts with a dot
+          name: dist
+          path: dist/
 
-  # Each platform's binary, run on that platform.
+  # Each platform's archive, unpacked and run on that platform.
   check:
-    name: check ${{ matrix.target }}
+    name: check ${{ matrix.platform }}
     needs: build
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { target: x86_64-linux, runner: ubuntu-24.04 }
-          - { target: aarch64-linux, runner: ubuntu-24.04-arm }
-          - { target: x86_64-macos, runner: macos-15-intel }
-          - { target: aarch64-macos, runner: macos-latest }
-          - { target: x86_64-windows, runner: windows-latest }
-          - { target: aarch64-windows, runner: windows-11-arm }
+          - { platform: x86_64-linux, runner: ubuntu-24.04 }
+          - { platform: aarch64-linux, runner: ubuntu-24.04-arm }
+          - { platform: x86_64-macos, runner: macos-15-intel }
+          - { platform: aarch64-macos, runner: macos-latest }
+          - { platform: x86_64-windows, runner: windows-latest }
+          - { platform: aarch64-windows, runner: windows-11-arm }
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: release
-      - name: Run
+          name: dist
+      - name: Unpack and run
         shell: bash
         run: |
-          helix=$(ls ${{ matrix.target }}/helix*)
-          chmod +x "$helix"   # artifacts don't keep the executable bit
-          "$helix" --help
+          tar -xJf helix-*-${{ matrix.platform }}.tar.xz
+          helix=$(ls helix-*-${{ matrix.platform }}/helix*)
+          "$helix" version
 
-  # A tag publishes the checked binaries as a GitHub release, one archive per platform.
+  # A tag publishes the checked archives as a GitHub release, whose notes are written on GitHub afterwards.
   publish:
     needs: check
     if: startsWith(github.ref, 'refs/tags/')
@@ -62,28 +86,16 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: release
-          path: release
-
-      - name: Package
-        run: |
-          mkdir dist
-          # each platform's whole folder, as helix-<version>-<platform>/: the compiler and its lib folder
-          for dir in release/*/; do
-              target=$(basename "$dir")
-              name=helix-$GITHUB_REF_NAME-$target
-              mv "$dir" "release/$name"
-              case $target in
-                  *-windows) (cd release && zip -qr "$GITHUB_WORKSPACE/dist/$name.zip" "$name") ;;
-                  *) chmod +x "release/$name/helix" release/"$name"/lib/llvm/bin/* && tar -cJf "dist/$name.tar.xz" -C release "$name" ;;
-              esac
-          done
-          (cd dist && sha256sum * > SHA256SUMS)
+          name: dist
+          path: dist
 
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes
+        run: |
+          prerelease=$([[ $GITHUB_REF_NAME == *-* ]] && echo --prerelease || true)
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" \
+              --notes "" $prerelease
 
   # The docs of the release. A release that github.token publishes starts no other workflow, so this calls docs.yml.
   docs:
